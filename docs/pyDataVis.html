@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>pyDataVis</title>
+  <style>
+    html {
+      line-height: 1.7;
+      font-family: Georgia, serif;
+      font-size: 20px;
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 40em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      word-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 1em;
+      }
+    }
+    @media print {
+      body {
+        background-color: transparent;
+        color: black;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin-top: 1.7em;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.7em;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1.7em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1.7em 0 1.7em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      font-style: italic;
+    }
+    code {
+      font-family: Menlo, Monaco, 'Lucida Console', Consolas, monospace;
+      background-color: #f0f0f0;
+      font-size: 85%;
+      margin: 0;
+      padding: .2em .4em;
+    }
+    pre {
+      line-height: 1.5em;
+      padding: 1em;
+      background-color: #f0f0f0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin-top: 1.7em;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+    }
+    th, td {
+      border-bottom: 1px solid lightgray;
+      padding: 1em 3em 1em 0;
+    }
+    header {
+      margin-bottom: 6em;
+      text-align: center;
+    }
+    nav a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">pyDataVis</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#installation">Installation</a>
+<ul>
+<li><a href="#usage">Usage</a></li>
+</ul></li>
+<li><a href="#loading-data-in-pydatavis">Loading data in pyDataVis</a>
+<ul>
+<li><a href="#reading-spectra-in-jcamp-dx-format">Reading spectra in JCAMP-DX format</a></li>
+<li><a href="#append">Append</a></li>
+<li><a href="#importing-data">Importing data</a></li>
+<li><a href="#updating">Updating</a></li>
+<li><a href="#data-table">Data table</a></li>
+</ul></li>
+<li><a href="#saving-and-exporting-data">Saving and exporting data</a></li>
+<li><a href="#plotting-curves">Plotting curves</a>
+<ul>
+<li><a href="#plot-commands-and-vector-names">Plot commands and vector names</a></li>
+<li><a href="#curves">Curves</a></li>
+<li><a href="#cursor-and-marks">Cursor and marks</a></li>
+<li><a href="#matplotlib-toolbar">Matplotlib toolbar</a></li>
+<li><a href="#matplotlib-keyboard-shorcuts">Matplotlib keyboard shorcuts</a></li>
+</ul></li>
+<li><a href="#data-conversion">Data conversion</a>
+<ul>
+<li><a href="#cif">CIF</a></li>
+<li><a href="#dat">DAT</a></li>
+<li><a href="#prf">PRF</a></li>
+<li><a href="#reshape">Reshape</a></li>
+<li><a href="#transpose">Transpose</a></li>
+<li><a href="#d-2d">1D-&gt;2D</a></li>
+</ul></li>
+<li><a href="#interactive-tools">Interactive tools</a>
+<ul>
+<li><a href="#smoothing">Smoothing</a></li>
+<li><a href="#spline-smoothing">Spline Smoothing</a></li>
+<li><a href="#als-smoothing">ALS Smoothing</a></li>
+<li><a href="#curve-fitting">Curve Fitting</a></li>
+<li><a href="#peak-finding-and-peak-fitting">Peak finding and Peak fitting</a></li>
+<li><a href="#interpolation">Interpolation</a></li>
+<li><a href="#baseline">Baseline</a></li>
+<li><a href="#add-noise">Add noise</a></li>
+<li><a href="#remove-noise">Remove noise</a></li>
+</ul></li>
+<li><a href="#script-commands">Script commands</a>
+<ul>
+<li><a href="#plot-commands">Plot commands</a></li>
+<li><a href="#commands-which-does-not-modify-the-vectors-values">Commands which does not modify the vectors values</a>
+<ul>
+<li><a href="#name">name</a></li>
+<li><a href="#stats">stats</a></li>
+<li><a href="#bet">BET</a></li>
+<li><a href="#pore-size-distribution-psd">Pore Size Distribution (PSD)</a></li>
+<li><a href="#area">area</a></li>
+<li><a href="#lineq">lineq</a></li>
+<li><a href="#linefit">linefit</a></li>
+<li><a href="#onset">onset</a></li>
+</ul></li>
+<li><a href="#operations-changing-all-the-elements-of-vectors">Operations changing all the elements of vectors</a>
+<ul>
+<li><a href="#creating-a-vector">Creating a vector</a></li>
+<li><a href="#deleting-a-vector">Deleting a vector</a></li>
+<li><a href="#exchange-the-elements-between-two-vectors">Exchange the elements between two vectors</a></li>
+<li><a href="#deleting-a-data-block">Deleting a data block</a></li>
+<li><a href="#merging-data-blocks">Merging data blocks</a></li>
+<li><a href="#scalar-operations-on-a-vector">Scalar operations on a vector</a></li>
+<li><a href="#operations-between-vectors">Operations between vectors</a></li>
+<li><a href="#applying-a-function-on-a-vector">Applying a function on a vector</a></li>
+<li><a href="#shrink">shrink</a></li>
+<li><a href="#revert">revert</a></li>
+<li><a href="#sort">sort</a></li>
+<li><a href="#irabs">IRabs</a></li>
+<li><a href="#irtrans">IRtrans</a></li>
+<li><a href="#fft">fft</a></li>
+<li><a href="#despike">despike</a></li>
+<li><a href="#delmultx">delmultx</a></li>
+<li><a href="#ndec">ndec</a></li>
+</ul></li>
+<li><a href="#operations-changing-only-a-part-of-vector-elements">Operations changing only a part of vector elements</a>
+<ul>
+<li><a href="#clipping-data">Clipping data</a></li>
+<li><a href="#line">line</a></li>
+<li><a href="#shift">shift</a></li>
+</ul></li>
+<li><a href="#running-python-scripts">Running Python scripts</a></li>
+</ul></li>
+<li><a href="#alphabetical-list-of-script-commands">Alphabetical list of script commands</a></li>
+<li><a href="#alphabetical-list-of-keyboard-shortcuts">Alphabetical list of keyboard shortcuts</a></li>
+</ul>
+</nav>
+<h1 id="overview">Overview</h1>
+<p><strong>pyDataVis</strong> is a GUI application for interactive visualization, analysis and manipulation of scientific data. There are many <a href="https://en.wikipedia.org/wiki/Category:Free_plotting_software">free plotting sofware</a> most of them far more powerful than <em>pyDataVis</em>. However, in terms of simplicity, it is hard to beat. Indeed it is very easy to use, just drag and drop your data file in <em>pyDataVis</em> window and immediately you are seeing the curves. For now, <em>pyDataVis</em> is limited to 2D plotting.</p>
+<p><em>pyDataVis</em> is an open source software written in <a href="https://en.wikipedia.org/wiki/Python_(programming_language)">Python</a>. It uses <a href="https://riverbankcomputing.com/software/pyqt/">PyQt</a> as graphic user interface (GUI) and <a href="https://matplotlib.org/">Matplotlib</a> for plotting.</p>
+<p><em>pyDataVis</em> operates only on text data. These data are assumed to be in columns with the same number of elements. The column separator (a space, a tab character, a comma, a semicolon …) must be the same all over the file. Each column is regarded as a <strong>vector</strong> (one-dimensional array). Here is an example, with 3 vectors having 10 elements:</p>
+<pre><code>0   0.00    0.00
+1   1.00    1.00
+2   1.41    1.69
+3   1.73    2.09
+4   2.00    2.38
+5   2.23    2.60
+6   2.44    2.79
+7   2.64    2.94
+8   2.82    3.07
+9   3.00    3.19</code></pre>
+<p>This set of data in tabular form is called a <strong>data block</strong>. It is possible to have several data blocks with different number of columns (vectors). These blocks must be separated by, at least, two empty lines.</p>
+<p>Any line which contains non numeric data will be regarded as a comment. However, to prevent ambiguity, it is wiser to prefix a comment line with a ‘#’ character.</p>
+<p>A pyDataVis window is shown in figure 1; it is divided into four main parts:</p>
+<ul>
+<li>The upper part, which contains the <em>Plotting area</em>.</li>
+<li>Below the <em>Plotting area</em>, there is the <em>Text editor window</em> showing the text data.</li>
+<li>At the bottom, the remaining space is shared by the <em>Script window</em> on the left and</li>
+<li>the <em>Information window</em> on the right.</li>
+<li>At the bottom, is the <em>Information window</em>. Besides, just below the <em>Plotting area</em>, there is the <a href="#matplotlib-toolbar">MatPlotLib toolbar</a>.</li>
+</ul>
+<p>When a data file is red without error, the <em>Text editor window</em> shows the text content of the file. If the format of this text has been correctly decoded, one or more curves are automatically plotted in the <em>Plotting area</em>. Information about the structure of the data and plotted curves are given in the <em>Information window</em>. Unlike text editor and script windows the text in <em>Information window</em> cannot be modified, it is purely informational. The <em>Script window</em> is used to input the <a href="#script-commands">script commands</a>.</p>
+<figure>
+<img src="img/pyDataVis-wnd.png" width="600" alt="Figure 1 - A pyDataVis window" /><figcaption aria-hidden="true">Figure 1 - A pyDataVis window</figcaption>
+</figure>
+<h1 id="installation">Installation</h1>
+<p>pyDataVis requires Python 3, PyQt5, Numpy, Pandas, Scipy and Matplotlib. The easiest way to install everything is to use Open Source <a href="https://www.anaconda.com/products/individual">Anaconda</a> that will “just work” out of the box for Windows, macOS and common Linux platforms.</p>
+<p>Then open a Terminal and change the current working directory to the location where you want to copy the pyDataVis folder, for example ~/myprog:</p>
+<pre><code>cd ~/myprog</code></pre>
+<p>Then type:</p>
+<pre><code>git clone https://github.com/pyDataVis/pyDataVis.git</code></pre>
+<h2 id="usage">Usage</h2>
+<p>Change the current working directory to the pyDataVis folder:</p>
+<pre><code>cd ~/myprog/pyDataVis</code></pre>
+<p>and execute the pyDataVis.py script:</p>
+<pre><code>python pyDataVis.py</code></pre>
+<p><strong>Examples</strong></p>
+<p>The folder <em>examples</em> contains files for testing almost any function. Instructions are given in the readme.txt file and a picture file (.png) shows the Plotting area at the end of the process.</p>
+<h1 id="loading-data-in-pydatavis">Loading data in pyDataVis</h1>
+<p>The text data is always loaded in the <em>Text editor window</em> before been processed. There are two ways to supply data in the <em>Text editor window</em>:</p>
+<ul>
+<li><p>The usual way is to load the data from a file. This is done either by selecting <em>Open</em> in the <em>File</em> menu or by dragging the file, from the file manager or the desktop, in the pyDataVis window.</p></li>
+<li><p>The second way is to enter the data manually. For example, using the key sequence Ctrl+N (or selecting <em>New</em> in the <em>File</em> menu) opens a new empty pyDataVis window. You may then input the data in the Text editor window. It is also possible to paste text data from an other application. Translation of this data in vectors and plotting the resulting curves is done by selecting <em>Update from text</em> in <em>File</em> menu.</p></li>
+</ul>
+<h2 id="reading-spectra-in-jcamp-dx-format">Reading spectra in JCAMP-DX format</h2>
+<p>pyDataVis can automatically decode and plot the files containing infrared spectra and mass spectra in <a href="http://www.jcamp-dx.org/protocols.html">JCAMP-DX format</a>. This format is used in <a href="https://webbook.nist.gov/chemistry/">NIST Chemistry WebBook</a> database. pyDataVis also recognizes the Raman data file from the <a href="https://rruff.info/">RRUFF</a> database.</p>
+<h2 id="append">Append</h2>
+<p>The <em>Append</em> option in the <em>File</em> menu is used to append data from another file at the end of the current data. The added file must contain only one data block and the number of vectors must be the same as the current data block.</p>
+<h2 id="importing-data">Importing data</h2>
+<p>By using the option <em>Import from spreadsheet</em> in the <em>File</em> menu, it is possible to import data from spreadsheet files like MS Excel or LibreOffice Calc (in this case the odfpy module must first be installed, for example with <code>pip install odfpy</code>). If the file contains several sheets, the same number of data blocks are created. Each sheet must contains only one data table otherwise the importation will give unpredictable results.</p>
+<h2 id="updating">Updating</h2>
+<p>When the vectors are modified, for example by <a href="#script-commands">Script commands</a>, the Text editor window is not updated to reflect these changes. In case of mistake this gives the possibility to restore previous state by using the <em>Update from text</em> option in the <em>File</em> menu. To update the Text editor window with the current vector values the <em>Update from data</em> option in the <em>File</em> menu should be used. Beware that these two options update also the file so that there is no way to get the original data back.</p>
+<h2 id="data-table">Data table</h2>
+<p>To see the real-time values of the vector elements, use the <em>Data Table</em> option in the <em>Tools</em> menu. This table can also be displayed with the key sequence Ctrl+T. The position of the selected cell of this table is linked to the <a href="#cursor-and-marks">data cursor</a> position. The value of the vector elements can also be modified with this table.</p>
+<h1 id="saving-and-exporting-data">Saving and exporting data</h1>
+<p>The data blocks can be saved in text files by using the options <em>Save data</em> and <em>Save data As</em> in the <em>File</em> menu. The column separator is always a tab character. The data blocks are separated from each other by two successive empty lines. <em>Save data</em> uses the current file name whereas <em>Save data As</em> lets you choose a new file name. I recommend to use the “.plt” extension for files saved by <em>pyDataVis</em> to tell them apart from simple .txt files because they contains plotting commands in the header.</p>
+<p>There are three options in the <em>File</em> menu to export the data blocks:</p>
+<ul>
+<li><em>Export to Excel</em> allows to export to a MS Excel file. Each data block is saved in a separated data sheet.</li>
+<li><em>Export to CSV</em> can be used to export the data as CSV (Comma Separed Value). Each data block is saved to a separate file.</li>
+<li><em>Export to Veusz</em> can be a way to produce publication quality charts by exporting the curves to the nice <a href="https://veusz.github.io/">Veusz</a> software.</li>
+</ul>
+<h1 id="plotting-curves">Plotting curves</h1>
+<h2 id="plot-commands-and-vector-names">Plot commands and vector names</h2>
+<p>Non numeric lines are generally regarded as comments and are not decoded except if they start with special words like plot, labX, … in which case they are interpreted as plot commands. Besides, the line immediately before the numerical data is decoded to check if it contains the vector names. For example:</p>
+<pre><code>Time Intensity
+0     0
+1     5
+2     15
+3     30</code></pre>
+<p>The first vector [0,1,2,3] will be named <em>Time</em> and the second one [0,5,15,30] <em>Intensity</em>.</p>
+<p>The number of items in the line containing the vector names must match the number of columns. Therefore a vector name cannot contains space because the space character is regarded as a separator (underscore can be used instead).</p>
+<p>In the absence of a line containing the vector names, the vectors are named automatically as V1B1, V2B1, … where the B1 ending indicates that these vectors belong to the first data block. Thus if the file contains a second data block the vectors belonging to this block will be named V1B2, V2B2, …</p>
+<p>If no plot command is found in the file header, the first column (V1B1) is assumed to contain X values. Thus, if the file contains three columns (vectors), V1B1, V2B1 and V3B1, two curves will be plotted automatically, V2B1 against V1B1 and V3B2 against V1B1.</p>
+<p>Several pyDataVis windows can be opened at the same time and curves exchanged between them using the options of the <em>Curve</em> menu or keyboard shortcuts.</p>
+<h2 id="curves">Curves</h2>
+<p>A curve consists of a set of two vectors (X and Y). Thanks to the <em>Curves</em> menu, the curves can be deleted, duplicated or copied. A curve copied in a pyDataVis window cannot be pasted in the same window because two curves cannot share the same name. If the curve is pasted in a window containing a vector having the same name, the original name is suffixed with the ’‘#’’ character. It is the same when a curve is duplicated,</p>
+<p>When a X,Y curve is pasted into another window, if the same X-vector already exists in a data block there are two possibilities, either to add the Y-vector at the end of the data block or to create a new data block to store the X and Y vectors. This is left to the choice of the user.</p>
+<p>The <em>Save in file</em> option allows for saving a given curve in a new file.</p>
+<h2 id="cursor-and-marks">Cursor and marks</h2>
+<p>When a curve is displayed on plotting area, right clicking with the mouse in this area triggers a light brown crosshair cursor. The point number (no) and coordinates (xc, yc) at the cursor position are shown in the status bar at the bottom of the pyDataVis window.</p>
+<p>This cursor can be moved to the next data point either with the key sequence Ctrl+Right arrow or by selecting the option <em>Cursor Right</em> in the <em>Marks</em> menu. Similarly the cursor can be moved to the previous data point either with the key sequence Ctrl+Left arrow or by selecting the option <em>Cursor Left</em> in the <em>Marks</em> menu.</p>
+<p>Besides, the key sequence Ctrl+F (<em>Cursor First</em> in the Marks menu) puts the cursor on the first point while the key sequence Ctrl+L (<em>Cursor Last</em> in the Marks menu) puts the cursor on the last point.</p>
+<p>When the plotting area shows several data curves, the cursor follows only one curve, which coordinates are shown in the status bar. This is the “active” curve. The key sequence Ctrl+D (<em>Cursor Down</em> in the Marks menu) makes the previous curve to become the active one whereas the key sequence Ctrl+U (<em>Cursor Up</em> in the Marks menu) makes the previous curve to become the active one.</p>
+<p>Finally, the key sequence Ctrl+M (<em>Add a Mark</em> in the Marks menu) adds or moves a mark (shown as a gray vertical line) at the cursor position. Only two marks can be added because the third time Ctrl+M is hit, the first mark is deleted and replaced by the new one. The key sequence Ctrl+R (<em>Remove all Marks</em> in the Marks menu) remove cursor and marks. These marks are used to select portions of the curve for several <a href="#script-commands">script commands</a>.</p>
+<h2 id="matplotlib-toolbar">Matplotlib toolbar</h2>
+<p>Beneath the <em>Plotting area</em> there is the <a href="https://matplotlib.org/3.1.1/users/navigation_toolbar.html">MatPlotLib toolbar</a> shown in figure 2. Hovering the mouse over each icon displays a tool tip giving a short description of its action. Here is the description of the action of each button:</p>
+<ul>
+<li><p>The first three buttons, Home, Back/Forward, are used to navigate through the previous views. Home returns to the initial view of the plot.</p></li>
+<li><p>The fourth button has two modes: pan and zoom. Press the left mouse button and hold it to pan the figure. If you press ‘x’ or ‘y’ while panning the motion will be constrained to the x or y axis, respectively. Press the right mouse button to zoom, dragging it to a new position. The x axis will be zoomed in proportionately to the rightward movement and zoomed out proportionately to the leftward movement. The same is true for the y axis and up/down motions.</p></li>
+<li><p>The fifth button handles zooming to rectangle functions. Dragging the mouse while holding the left button the axes view limits will be zoomed in to the defined region. When using the right mouse button, the axes view limits will be zoomed out, placing the original axes in the defined region.</p></li>
+<li><p>The sixth button is used to adjust the plot position within the window.</p></li>
+<li><p>The seventh button calls the axis/curve style editor, where you can modify most of the plot properties like title, axis label and scale, plot symbols, line colours and line styles. It should be noted that the changes done using the axis/curve style editor are not recorded permanently.</p></li>
+<li><p>The last button allows to save the plot as an image. You can save files with the following extensions: png, ps, eps, svg and pdf.</p></li>
+</ul>
+<figure>
+<img src="img/MPL-Toolbar.png" width="300" alt="Figure 2 - MatPlotLib toolbar" /><figcaption aria-hidden="true">Figure 2 - MatPlotLib toolbar</figcaption>
+</figure>
+<h2 id="matplotlib-keyboard-shorcuts">Matplotlib keyboard shorcuts</h2>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Command</th>
+<th style="text-align: left;">Keyboard shortcut</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Toggle grid</td>
+<td style="text-align: left;">g or G when mouse is over the plot</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Toggle x axis scale (log/linear)  </td>
+<td style="text-align: left;">L or k when mouse is over the plot</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Toggle y axis scale (log/linear)</td>
+<td style="text-align: left;">l when mouse is over the plot</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Constrain pan/zoom to x axis</td>
+<td style="text-align: left;">hold x when panning/zooming with mouse</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Constrain pan/zoom to y axis</td>
+<td style="text-align: left;">hold y when panning/zooming with mouse</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Preserve aspect ratio</td>
+<td style="text-align: left;">hold CONTROL when panning/zooming with mouse</td>
+</tr>
+</tbody>
+</table>
+<p>The toggle grid shortcut g (or G) behavior is: the first hit toogles vertical grid, the second hit adds the horizontal grid, the third hit removes the vertical grid leaving only the horizontal one and the fourth hit removes all grids.</p>
+<h1 id="data-conversion">Data conversion</h1>
+<p>When the data format cannot be decoded, no curve is shown in the Plotting area, only the text content is displayed in the Text editor window. Nevertheless, in some cases, the data in the Text editor window can be processed by selecting the suitable option in the <em>Convert</em> menu.</p>
+<h2 id="cif">CIF</h2>
+<p>The <strong>CIF</strong> option is used to generate a powder diffraction pattern from a Crystallographic Information File (CIF). This is a standard text file format for representing crystallographic information, promulgated by the International Union of Crystallography <a href="https://www.iucr.org/">(IUCr)</a>. A large collection of CIF files can be found in the Crystallography Open Database <a href="http://www.crystallography.net/cod/">(COD)</a>.</p>
+<p>The reflection lines in the simulated XRD pattern are generated from CIF data loaded in the <em>Text editor window</em> by the <a href="https://pypi.org/project/Dans-Diffraction/">Dans_Diffraction package</a>. This package is easily installed in aterminal with: <code>pip install Dans-Diffraction</code>.</p>
+<p>The line positions are calculated for an X-ray energy = 8.048 keV, which corresponds to Cu K-alpha-1 radiation. For example, the figure 3 shows the simulated pattern of silicon calculated from a CIF file (COD 9008566) plotted along with an experimental pattern recorded with a silicon standard.</p>
+<figure>
+<img src="img/Si-XRD.png" width="600" alt="Figure 3 - Experimental and simulated XRD patterns of Si" /><figcaption aria-hidden="true">Figure 3 - Experimental and simulated XRD patterns of Si</figcaption>
+</figure>
+<h2 id="dat">DAT</h2>
+<p>The <strong>DAT</strong> option does the conversion of “.DAT” diffraction file format. This is a common ASCII file format for raw (profile) data. In the first line, the 2theta start, step and final value are given, followed by the intensity values for each step. The number of intensity values per line may vary. The generated data is saved in a new file using the same name as the “.DAT” file but with “.TXT” extension. Then this file is loaded and plotted in a new <em>pyDataVis</em> window.</p>
+<h2 id="prf">PRF</h2>
+<p>The <strong>PRF</strong> option does the conversion of a “.prf” file generated by <a href="https://www.ill.eu/sites/fullprof/index.html">FullProf</a> in a tabular text file. FullProf is a set of programs used for Rietveld analysis of X-ray powder diffraction data. The generated data is saved in a new file using the same name as the “.PRF” file but with “.TXT” extension. Then this file is loaded and plotted as shown in figure 4.</p>
+<figure>
+<img src="img/PRF-LaB6.png" width="600" alt="Figure 4 - Rietveld refinement on LaB6" /><figcaption aria-hidden="true">Figure 4 - Rietveld refinement on LaB6</figcaption>
+</figure>
+<h2 id="reshape">Reshape</h2>
+<p>The <strong>Reshape</strong> option allows to change the shape of a data block (number of lines and columns) while keeping the total number of elements constant. For example, <em>Reshape</em> can transform 1D data in 2D with half the number of elements in each dimension. It can be used to restore the right shape which has been lost after pasting the data from another application. For example, when a set of cells are pasted from <a href="https://www.libreoffice.org/discover/calc/">LibreOffice Calc</a> the column separator seems to have vanished. By using the <em>Update from text</em> option in the <em>File</em> menu, the data are now in one column. With the <em>Reshape</em> option it is possible to restore the original shape of the data.</p>
+<h2 id="transpose">Transpose</h2>
+<p>The <strong>Transpose</strong> option switches the rows and columns. Like <em>Reshape</em>, it can be used to restore the right shape which has been lost after pasting the data from another application.</p>
+<h2 id="d-2d">1D-&gt;2D</h2>
+<p>The <strong>1D-&gt;2D</strong> option adds to a data block containing only one vector, let’s call it Y, a new vector X thereby allowing to plot Y=f(X). The X vector contains the point number, starting from 0. Subsequently it is easy to modify X thanks to <a href="#scalar-operations-on-a-vector">script commands</a>.</p>
+<h1 id="interactive-tools">Interactive tools</h1>
+<p>In pyDataVis, most of the data processing is done via <a href="#script-commands">scripting commands</a> which are detailed below. However in some cases it is more convenient to use interactive tools. These tools are accessed via the <em>Tools</em> menu. When several curves are plotted in the Plotting area, a dialog let you select the curve that need to be addressed.</p>
+<p>In some cases the computation results are saved in the log file preceded by a header indicating the date and time of the calculation. This file can be accessed and modified by selecting the <em>View log</em> option in the file menu.</p>
+<h2 id="smoothing">Smoothing</h2>
+<p>Smoothing is a very powerful technique used all across data analysis. It consists of removing random variation (noise) while preserving the original shape and features of the signal. With <em>pyDataVis</em> you can choose several techniques to achieve the best result according to the kind of data.</p>
+<p>With the <strong>Smoothing</strong> option of the <em>Tools</em> menu two kinds of filter are proposed: the <em>Moving average</em> and the <em>Savitzky-Golay</em>.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Moving_average"><strong>Moving average</strong></a> filter operates by averaging ‘n’ points from the input data to produce each point in the output data, where n is an odd integer. The figure 4 shows the smoothing window when the Moving average filter is selected. Three curves are plotted. The grey curve corresponds to the original data, the blue curve to the filtered data and the green curve shows the difference between original and filtered. The goal is that this curve shows only noise.</p>
+<figure>
+<img src="img/Smoothing.png" width="500" alt="Figure 5 - The smoothing tool" /><figcaption aria-hidden="true">Figure 5 - The smoothing tool</figcaption>
+</figure>
+<p>There are two parameters to tune the degree of smoothing. The first is the filter size, which is the number of points that are averaged. The second is the number of passes which is the number of times the filtering process is repeated. When the parameter values are changed, you should click on the <em>Compute</em> button to restart the calculations with the new values.</p>
+<p>When you click on the <em>OK</em> button, the original data is replaced by the blue curve, the window is closed and the Plotting area is updated.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Savitzky%E2%80%93Golay_filter"><strong>Savitzky-Golay</strong></a> is a low-pass filter, particularly suited for smoothing noisy data. The main idea behind this approach is to make for each point a least-square fit with a polynomial of low order over an odd-sized window centered at the point. It has the advantage of preserving the original shape and features of the signal better than other types of filtering approaches, such as moving average.</p>
+<p>When the Savitzky-Golay filter is selected, there is an additional parameter, the order, which is the degree of the fitting polynom.</p>
+<h2 id="spline-smoothing">Spline Smoothing</h2>
+<p><strong>Spline</strong> functions are widely used in applications requiring data interpolation and/or smoothing. They are build by defining knot points and calculating the polynomials that pass through these points. With the <strong>Spline Smoothing</strong> option of the <em>Tools</em> menu two parameters are used to tune the level of smoothing:</p>
+<ul>
+<li><p>The degree of the polynomials. Must be in the range 1 to 5. The best starting value is 3, which corresponds to a cubic spline.</p></li>
+<li><p>The smoothing factor, s, which is used to choose the number of knots. This factor control the trade-off between fidelity to the data and roughness of the function estimate. If s = 0, spline will interpolate through all data points.</p></li>
+</ul>
+<p>The figure 6 shows the <em>Spline smoothing</em> window. Like with the <em>Smoothing</em> window seen above, three curves are plotted. The grey curve corresponds to the experimental data, the blue curve to the smoothed data and the green curve to the difference between experimental and smoothed values.</p>
+<figure>
+<img src="img/SplSmoothing.png" width="500" alt="Figure 6 - The Spline smoothing tool" /><figcaption aria-hidden="true">Figure 6 - The Spline smoothing tool</figcaption>
+</figure>
+<h2 id="als-smoothing">ALS Smoothing</h2>
+<p>The <em>ALS Smoothing</em> option, in the <em>Tools</em> menu, is primarily used for baseline correction. ALS stands for Asymmetric Least Squares. This method has been designed by Paul Eilers and Hans F.M. Boelens (2005). To get an effective baseline estimator, it combines a smoother with asymmetric weighting of deviations from the (smooth) trend. It is easy to use, fast and keeps the analytical peak signal intact. No prior information about peak shapes or baseline (polynomial) is needed.</p>
+<p>There are two parameters: p for asymmetry and lambda for smoothness. For a signal with positive peaks a good choice is to set lambda between 10<sup>2</sup> and 10<sup>9</sup> and p between 0.001 and 0.1.</p>
+<p>It is not efficient for a number of data point exceeding 1000.</p>
+<p>The figure 7 shows the ALS Smoothing window. Besides the <em>Compute</em> button already present in the previous tools, there are two additional buttons. As we might expect <em>Subtract</em> will subtract the baseline and thus change the original data, whereas <em>Add</em> does not change the data but add a new vector containing the baseline.</p>
+<figure>
+<img src="img/ALS-Smooth.png" width="500" alt="Figure 7 - The ALS Smoothing tool" /><figcaption aria-hidden="true">Figure 7 - The ALS Smoothing tool</figcaption>
+</figure>
+<h2 id="curve-fitting">Curve Fitting</h2>
+<p>The <em>Curve Fitting</em> option, in the <em>Tools</em> menu, is used for fitting curves with predefined models. There are seven models :</p>
+<ul>
+<li><p>Polynomial</p></li>
+<li><p>Exponential, <span class="math inline">\(y = A \times exp(B x)\)</span></p></li>
+<li><p>Logarithm, <span class="math inline">\(y = A \times Ln(x) + B\)</span></p></li>
+<li><p>Power, <span class="math inline">\(y = A \times x^B\)</span></p></li>
+<li><p>Sigmoid, <span class="math inline">\(y = y_0 + \frac{H}{1 + exp(S (x_0 - x))}\)</span></p></li>
+<li><p>Arrhenius, <span class="math inline">\(y = A \times exp \left( - \frac{E}{R(x+T)} \right)\)</span> with R = 8.314 and T = 273</p></li>
+<li><p>Herschel-Bulkley, <span class="math inline">\(y = A + B x^C\)</span></p></li>
+</ul>
+<p>Several curves are plotted in figure 8 to show the general shape of these models. In the plot legend, Bneg means that B is negative and Bpos that B is positive. Thus pow_Bneg reads as power model with negative B.</p>
+<p>In the equation of the sigmoid model, <span class="math inline">\(x_0\)</span> is the position of the inflection point, <span class="math inline">\(y_0\)</span> is the position of the baseline, H is the height (amplitude) and S governs the slope of the tangent at the inflection point. Larger S values means steeper increase. When S is negative the S shape is inverted. For example, in figure 8, S = -1 and in figure 9, S = +1.</p>
+<figure>
+<img src="img/curveModels.png" width="550" alt="Figure 8 - Fitting models" /><figcaption aria-hidden="true">Figure 8 - Fitting models</figcaption>
+</figure>
+<p>The last two models are more specific. The <a href="https://en.wikipedia.org/wiki/Arrhenius_equation">Arrhenius</a> model describes the temperature dependence of reaction rates. The parameters are A (which is called the pre-exponential factor) and E the activation energy.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Herschel%E2%80%93Bulkley_fluid">Herschel-Bulkley</a> model is used to describe the rheological behavior of a non-newtonian fluid; y is the shear stress and x the shear rate; A is the yield stress, B the consistency index and C the flow index.</p>
+<p>None of the available models in <em>Curve Fitting</em> menu option are adequate for fitting peaks. For that, the <a href="#peak-finding-and-peak-fitting"><em>Peak fitting</em></a> tool should be used.</p>
+<p>The figure 9 shows the Curve Fitting window after a fitting process with the Sigmoid model. The current parameter values are printed in the text area, below the Matplotlib graphic toolbar. The value of these parameters can be modified in the fields at the bottom of the window and the fitting process is restarted by clicking on the <em>Compute</em> button. An estimation of the goodness of the fit is given through the Root Mean Square Error (RMSE) value defined by:</p>
+<p><span class="math display">\[ RMSE = \sqrt \frac {\sum_{i=1}^{N} { \left[ y_{calc} - y_{exp} \right] ^2 } } {N} \]</span></p>
+<p>where <span class="math inline">\(y_{calc}\)</span> is the calculated data, <span class="math inline">\(y_{exp}\)</span> the experimental data and N the number of points. The fitting results are saved in the log file.</p>
+<p>When you click on the <em>OK</em> button, the original data is replaced by the blue curve, the window is closed and the Plotting area is updated.</p>
+<figure>
+<img src="img/SigmoidFitting.png" width="500" alt="Figure 9 - Fitting with sigmoid model" /><figcaption aria-hidden="true">Figure 9 - Fitting with sigmoid model</figcaption>
+</figure>
+<h2 id="peak-finding-and-peak-fitting">Peak finding and Peak fitting</h2>
+<p>These two options of <em>Tools</em> menu are working together because after finding the peaks, the <em>Peak finding</em> module automatically calls the <em>Peak fitting</em> module.</p>
+<p>Selecting the <em>Peak finding</em> option pops up the Peak finding dialog as shown on figure 10. When the signal is noisy there are a very large number of peaks. To select only the relevant ones two parameters are used: the height of the smallest peak (minHeight) and the width of the narrowest peak (minWidth).</p>
+<figure>
+<img src="img/peakFind1.png" width="500" alt="Figure 10 - Peak finding tool" /><figcaption aria-hidden="true">Figure 10 - Peak finding tool</figcaption>
+</figure>
+<p>The first time, pyDataVis try to guess the parameter values based on a statistic analysis of the signal. Of course, you can modify these values according to your expectations.</p>
+<p>As shown on figure 11, at the end of the peak finding process, a dialog pops up to inform you of the number of peaks that were found. If you answer ‘Yes’ the peak fitting module is launched. Otherwise the process is canceled.</p>
+<figure>
+<img src="img/peakFind2.png" width="500" alt="Figure 11 - Peak finding result" /><figcaption aria-hidden="true">Figure 11 - Peak finding result</figcaption>
+</figure>
+<p>When the peak fitting process is finished (which can takes some time when there are many peaks) the peak fitting window pops up, as shown in figure 12. This window is divided in three parts. Above is the plotting area which allows to visually evaluate the fitting results. The grey curve corresponds to the experimental data, the blue curve to the calculated sum of the peaks and the green curve shows the difference between the data and the peak sum. Of course the goal is to make this curve as flat as possible.</p>
+<figure>
+<img src="img/peakFit1.png" width="500" alt="Figure 12 - Peak fitting tool" /><figcaption aria-hidden="true">Figure 12 - Peak fitting tool</figcaption>
+</figure>
+<p>Below the plotting area, the results of the fitting process are shown in an information area (read only). As in the case of <a href="#curve-fitting"><em>Curve fitting</em></a> an estimation of the goodness of the fit is given through the RMSE value, already defined above in the <a href="#curve-fitting"><em>Curve fitting</em></a> tool. Below the text information area is the Peak parameters area. Here, the value of the peak parameters can be modified after which the fitting process can be launched again by clicking on the <em>Compute</em> button. The fitting results are saved in the log file.</p>
+<p>When the fitting module is called from the <em>Finding peak</em> option, it uses a Gaussian function to model each peak shape. It is clear that the Gaussian type is not well suited to represent the peak shapes in the case of the experimental data shown in the previous figure. It is possible to change the peak model by replacing the peak parameters, G, by another type. pyDataVis allows to choose between six peak types:</p>
+<ul>
+<li>G : Gaussian</li>
+<li>L : Lorentzian</li>
+<li>P : Pseudo-Voigt</li>
+<li>AG : Asymmetric Gaussian</li>
+<li>AL : Asymmetric Lorentzian</li>
+<li>AP : Asymmetric Pseudo-Voigt</li>
+</ul>
+<p>The curve equation for Gaussian and Lorentzian peak type are: <span class="math display">\[ G(x) = A \times exp \left[- \left( \frac{x-x_m}{w} \right) ^2 \right] \]</span></p>
+<p><span class="math display">\[ L(x) = A \times \left[ \frac{1}{1 + \left( \frac{x - x_m}{w/2} \right) ^2} \right] \]</span></p>
+<p>In these equations, A is the peak amplitude (height), <span class="math inline">\(x_m\)</span> is the position of the peak maximum, w is the Full Width at Half Maximum (FWHM). The pseudo-Voigt model P(x) is a linear combination of a Gaussian curve G(x) and a Lorentzian curve L(x). Therefore this model requires an additional parameter m.</p>
+<p><span class="math display">\[ P(x) = m \times L(x) + (1-m) \times G(x) \qquad with \; 0 \leq m \leq 1 \]</span></p>
+<p>The peak shape, associated with these three models, is shown in the left plot of figure 13. The three remaining peak types are used to fit asymmetric peaks. In this case the w parameter is no more a constant but becomes a function of x, w(x) defined by:</p>
+<p><span class="math display">\[ w(x) = \frac{2 \ FWHM}{1 + exp(a(x - x_m))} \qquad with \ -1 \leq a \leq 1 \]</span></p>
+<p>The parameter a is the skewness factor. The equation of AG(x), AL(x) and AP(x) are obtained by replacing w by w(x) in the above equations of G(x), L(x) and AP(x). The peak shape corresponding to these three models is shown in the right plot of figure 13.</p>
+<figure>
+<img src="img/peakModels.png" width="600" alt="Figure 13 - Peak models" /><figcaption aria-hidden="true">Figure 13 - Peak models</figcaption>
+</figure>
+<p>It is important to notice that, in the peak parameter area, for each peak, six parameters are always provided even when they are not relevant, in which case they are set to zero. Besides, unlike the other, the a and b parameters can correspond to different things according to the peak type. For example, a, corresponds to the mixing parameter (m) for pseudo-Voigt model and to the skewness factor (a) for asymmetric Gaussian model.</p>
+<p>Let us return to the peak fitting window and replace, for both peaks, the peak type parameter, G, by AP. We do not modify the other parameters and click on <em>Compute</em> button. The figure 14 shows that this fairly improves the fitting result.</p>
+<figure>
+<img src="img/peakFit2.png" width="500" alt="Figure 14 - Peak fitting with AP model" /><figcaption aria-hidden="true">Figure 14 - Peak fitting with AP model</figcaption>
+</figure>
+<p>Clicking on <em>OK</em> generates a file named “peakFit.txt” and opens a new pyDataVis window to display its content. The plotting area is shown in figure 15. There are four curves: the experimental data, the sum of peaks and the curve for each peak.</p>
+<figure>
+<img src="img/peakFit3.png" width="500" alt="Figure 15 - Peak fitting file" /><figcaption aria-hidden="true">Figure 15 - Peak fitting file</figcaption>
+</figure>
+<h2 id="interpolation">Interpolation</h2>
+<p>Interpolation consists of finding intermediate values of a variable from a discrete set of its known values. For example, a spatial interpolation or temporal interpolation can be used for finding missing data in space- or time-series. pyDataVis use a smooth spline curve approximation to determine the positions of the unknown values. The Interpolation window, shown on figure 16, is accessed thanks to the <em>Interpolation</em> option of the <em>Tools</em> menu. There are three parameters:</p>
+<ul>
+<li>dx, which is the distance between points on abscissa.</li>
+<li>k, is the degree of the spline fit (1 &lt;= k &lt;= 5). It is recommended to use cubic splines (k=3). Even values of k should be avoided especially with small s values.</li>
+<li>s, the smoothing parameter, used to control the tradeoff between closeness and smoothness of fit. Larger s means more smoothing while smaller values of s indicate less smoothing.</li>
+</ul>
+<p>It is possible to interpolate curves which are in another data block by selecting the corresponding block number.</p>
+<p>It should be noticed that this tool can also be used to decrease the number of data points.</p>
+<figure>
+<img src="img/interpol.png" width="500" alt="Figure 16 - Interpolation tool" /><figcaption aria-hidden="true">Figure 16 - Interpolation tool</figcaption>
+</figure>
+<h2 id="baseline">Baseline</h2>
+<p>The Baseline correction is ubiquitous for spectroscopic data analysis because a spectrometer usually have a baseline drift due to environmental factors (temperature, light source, …). The Baseline correction tool of pyDataVis, shown on figure 17, is accessed thanks to the <em>Baseline</em> option of the <em>Tools</em> menu. You define the baseline position by clicking on the curve. Left click adds a new point at the mouse position, right click deletes the point which was already around. The baseline curve can be build from these points by two methods according to the type:</p>
+<ul>
+<li>Linear, the curve is build by concatenation of the line segments connecting the points;</li>
+<li>Cubic spine, the curve is build by cubic spine interpolation between the points.</li>
+</ul>
+<p>Once a method is chosen, it is not possible to change it. If you click on <em>Correct</em> button the baseline is subtracted from the original data. If you click on <em>Add BL</em> button, this does not change the data but a new vector containing the baseline is added to the data block.</p>
+<p>If the signal is noisy it is recommended to remove the noise prior to the baseline correction.</p>
+<figure>
+<img src="img/baseline.png" width="500" alt="Figure 17 - Baseline correction tool" /><figcaption aria-hidden="true">Figure 17 - Baseline correction tool</figcaption>
+</figure>
+<h2 id="add-noise">Add noise</h2>
+<p>The <em>Add Noise</em> tool of pyDataVis, shown on figure 18, is accessed thanks to the <em>Add Noise</em> option of the <em>Tools</em> menu. This tool adds to the selected curve random values calculated from a normal (Gaussian) distribution. There are two parameters:</p>
+<ul>
+<li>Location, which is the mean (centre) of the distribution. It defaults to 0.0, that is the noise is uniformly distributed on both sides of the curve.</li>
+<li>Scale, which is the standard deviation (spread or “width”) of the distribution. Must be non-negative. The initial value given by pyDataVis is 1/100 of data span.</li>
+</ul>
+<figure>
+<img src="img/addNoise.png" width="500" alt="Figure 18 - Add noise tool" /><figcaption aria-hidden="true">Figure 18 - Add noise tool</figcaption>
+</figure>
+<h2 id="remove-noise">Remove noise</h2>
+<p>The <em>Remove Noise</em> tool of pyDataVis, shown on figure 19, is accessed thanks to the <em>Remove Noise</em> option of the <em>Tools</em> menu. Actually this tool is not interactive because the process is fully automatic.</p>
+<figure>
+<img src="img/delNoise.png" width="500" alt="Figure 19 - Remove noise tool" /><figcaption aria-hidden="true">Figure 19 - Remove noise tool</figcaption>
+</figure>
+<h1 id="script-commands">Script commands</h1>
+<p>In pyDataVis, script commands are used for plotting and to do most of the data processing. Beware that the command names, the vector names and the parameters are case sensitive. Several script commands can be chained together. The script commands are written in the <em>Script window</em> and executed by typing Ctrl+E or by selecting the option <em>Execute a script</em> in the Script menu. Empty lines and lines starting with # are ignored during execution. The script can be executed repeatedly by retyping Ctrl+E as often as desired. If an error occurs during the execution of a script sequence, the process is stopped at the faulty line; the remaining commands are not executed.</p>
+<p>Before a script was executed the current data is saved in memory. If something wrong happens during execution the previous state can be restored by selecting the <em>Undo</em> option in the <em>Script</em> menu.</p>
+<p>The key sequence <em>Ctrl+K</em> clears the text in the <em>Script window</em> and gives it the focus so a new script can be written without having to click in this window.</p>
+<p>It is possible to save the content of the <em>Script window</em> to a file by selecting the option <em>Save script</em> in the <em>Script</em> menu. Conversely a script previously saved to a file can be loaded in the <em>Script window</em> by selecting the option <em>Load script</em>. The figure 20 shows a pyDataVis window after creation of a new file and execution of the following script:</p>
+<pre><code>newv X 0,6.3,0.1
+Y = X + sin(2*X)
+plot X,Y
+labX X
+labY1 Y
+text 0.5,5,Y = X + sin(2X),black,20</code></pre>
+<p>In some cases the computation results are saved in the log file preceded by a header indicating the date and time of the calculation. This file can be accessed and modified by selecting the <em>View log</em> option in the file menu.</p>
+<figure>
+<img src="img/script.png" width="550" alt="Figure 20 - Executing a script" /><figcaption aria-hidden="true">Figure 20 - Executing a script</figcaption>
+</figure>
+<h2 id="plot-commands">Plot commands</h2>
+<p>The command used to plot the vector Y against the vector X is:</p>
+<pre><code>plot X,Y
+plot X,Y,2</code></pre>
+<p>The first command plots Y against X using the primary Y-axis (left side) whereas the second command plots Y against X using a secondary Y-axis (right). Only one secondary axis is possible and a plot command against primary axis must precede a plot command against the secondary. Both X and Y vectors must belong to the same data block. The color of the curves is chosen automatically but it can be temporarily modified with the axis/curve style editor in <a href="#matplotlib-toolbar">Matplotlib toolbar</a>.</p>
+<p>The following command gives to the x-axis the label “Time (s)”</p>
+<pre><code>labX Time (s)</code></pre>
+<p>The following commands give to the primary Y-axis the label “Intensity” and to the secondary Y-axis the label “Volume”</p>
+<pre><code>labY1 Intensity
+labY2 Volume</code></pre>
+<p>Default plot type is line, that is no symbol are drawn for data points which are linked by lines segments. Symbols are automatically used if the number of points is lower than 15. However it is possible to change this behavior with the commands:</p>
+<pre><code>symbol Y
+no symbol Y</code></pre>
+<p>The first will plot symbols for the curve Y whereas the second will use line type. Like the color, the symbol shape is chosen automatically, however it can be temporarily modified with the axis/curve style editor in <a href="#matplotlib-toolbar">Matplotlib toolbar</a>.</p>
+<p>It is possible to add text. The following command writes ‘Title’ at x,y position, using a red font with size 14:</p>
+<pre><code>text x,y,Title,red,14</code></pre>
+<p>The text position is relative to x-axis and primary y-axis. The fourth parameter ‘red’ indicates that the text color is red. The color names are:</p>
+<p>blue, darkblue, red, darkred, green, darkgreen, magenta, darkmagenta, cyan, darkcyan, yellow, brown, gray, black, white, cadetblue, chocolate, coral, burlywood, aqua, aquamarine, blueviolet, cornflowerblue, crimson, darkgoldenrod, darkkhaki, darkolivegreen, darkorange, darksalmon, darkseagreen, darkslateblue, darkslategray, darkviolet, deeppink, goldenrod, greenyellow, hotpink, indigo.</p>
+<p>Finally it is also possible to add an arrow. The following command draws a red arrow which starts at x,y; its length and angle are given by dx and dy. If dx=0, the arrow is parallel to y-axis. If dy=0 it is parallel to x-axis. If dx=dy it makes an angle of 45°.</p>
+<pre><code>arrow x,y,dx,dy,red</code></pre>
+<p>All these commands can be chained together. For example, the plot in figure 21 was obtained by executing the following lines in the <em>Script window</em>:</p>
+<pre><code>plot T,TG
+plot T,Hf,2
+labX Temperature (C)
+labY1 TG (%)
+labY2 Hf
+arrow 850,-25,0,7,red
+text 815,-28,exo,red,18</code></pre>
+<figure>
+<img src="img/plotCmd.png" width="500" alt="Figure 21 - Using plot commands" /><figcaption aria-hidden="true">Figure 21 - Using plot commands</figcaption>
+</figure>
+<h2 id="commands-which-does-not-modify-the-vectors-values">Commands which does not modify the vectors values</h2>
+<h3 id="name">name</h3>
+<p>The <em>name</em> command is used to change the name of a vector. For example the following command gives to the vector V1 the name V2. It is not possible that two vectors share the same name, therefore if V2 already exists this command will generate an error.</p>
+<pre><code>name V1 as V2</code></pre>
+<h3 id="stats">stats</h3>
+<p>The <em>stats</em> command provides statistics on a vector:</p>
+<pre><code>stats V1</code></pre>
+<p>As shown in figure 22, for a vector Y {<span class="math inline">\(y_1\)</span>, <span class="math inline">\(y_2\)</span>,…,<span class="math inline">\(y_n\)</span>} of dimension n, the values returned are:</p>
+<ul>
+<li><p>Minimum, <span class="math inline">\(y_{min}\)</span></p></li>
+<li><p>Maximum, <span class="math inline">\(y_{max}\)</span></p></li>
+<li><p>Sum of the values, <span class="math inline">\(S = \sum_{i=1}^{n} y_i\)</span></p></li>
+<li><p>Median, which is a value separating the higher half from the lower half of Y.</p></li>
+<li><p>Arithmetic mean, <span class="math inline">\(\overline{\rm y} = \frac{S}{n}\)</span></p></li>
+<li><p>Variance, <span class="math inline">\(\sigma^2 = \frac{1}{n-1} \sum_{i=1}^{n} \left(y_i - \overline{\rm y} \right)^2\)</span></p></li>
+<li><p>Standard deviation, <span class="math inline">\(\sigma = \sqrt{\sigma^2}\)</span></p></li>
+<li><p>Root mean square, <span class="math inline">\(RMS = \sqrt{\frac{1}{n} \sum_{i=1}^{n} y_i^2 }\)</span></p></li>
+<li><p>Peak-to-peak, pp = <span class="math inline">\(y_{max} - y_{min}\)</span></p></li>
+</ul>
+<figure>
+<img src="img/stats.png" width="500" alt="Figure 22 - Statistics on a vector" /><figcaption aria-hidden="true">Figure 22 - Statistics on a vector</figcaption>
+</figure>
+<h3 id="bet">BET</h3>
+<p>Brunauer–Emmett–Teller <a href="https://en.wikipedia.org/wiki/BET_theory">(BET)</a> model serves as the basis for the measurement of the specific surface area of materials from adsorption isotherms. The BET command:</p>
+<pre><code>BET</code></pre>
+<p>computes the optimum BET surface area and the BET constant. No parameter is given because it is assumed that the first data block contains the adsorption isotherm with the first vector of this block being the relative pressure and the second vector the adsorbed volume expressed in mL/g. Only nitrogen adsorption is implemented. If the relative pressure reaches the saturation (Pr &gt; 0.98) the BET command computes also the pore volume. The optimisation process includes finding, in the relative pressure range 0.04 - 0.30, a window of at least seven data points, giving the best correlation coefficient. The figure 23 shows an example of the computation results. More detailed information is saved in the <a href="">log file</a>.</p>
+<figure>
+<img src="img/BET.png" width="500" alt="Figure 23 - BET computation results" /><figcaption aria-hidden="true">Figure 23 - BET computation results</figcaption>
+</figure>
+<h3 id="pore-size-distribution-psd">Pore Size Distribution (PSD)</h3>
+<p>The command <em>PSD</em> computes the pore size distribution from adsorption-desorption isotherms. Two data block are required and it is assumed that the adsorption isotherm is contained in the first data block and the desorption isotherm in a second data block. Moreover, in these blocks, the first vector must contain the relative pressure and the second vector the adsorbed volume expressed in mL/g. Only nitrogen adsorption and cylindrical pore geometry are implemented.</p>
+<p>The <em>PSD</em> command takes two parameters. The first, which can be either A or D, indicates which isotherm (A-dsorption or D-esorption) is used. The second parameter specifies the equation used for calculating the thickness of adsorbed layer according to the relative pressure (t-curve). This parameter can have one of the three values: halsey, harkins or tfit.</p>
+<p>The figure 24 shows an example of the computation of a PSD. The left plot shows the adsorption-desorption isotherms. The computation was done with the desorption isotherm and halsey curve. At the end of the process a new file is generated which contains four vectors: the pore width (Wp), the pore volume (Vp), the pore volume divided by the pore width difference (dV/dW) and the cumulative pore volume (Vcum). As shown on the right chart, two curves are plotted, the pore size distribution dV/dW and the cumulative pore volume.</p>
+<figure>
+<img src="img/PSD.png" width="700" alt="Figure 24 - PSD computation" /><figcaption aria-hidden="true">Figure 24 - PSD computation</figcaption>
+</figure>
+<h3 id="area">area</h3>
+<p>The command:</p>
+<pre><code>area Y</code></pre>
+<p>computes the area under a curve Y=f(X) using the <a href="https://en.wikipedia.org/wiki/Trapezoidal_rule">trapezoidal rule</a>. The limits of the integration must be indicated by the marker positions. area is defined by the curve and the x-axis. Thus a baseline correction may be required before the area calculation. The figure 25 shows an example of the calculation of the area of the last peak. It should be noticed that, in the case of this picture, a better evaluation of the peak area could have been obtained with the <a href="#peak-finding-and-peak-fitting">Peak Fitting</a> tool.</p>
+<figure>
+<img src="img/area.png" width="500" alt="Figure 25 - Area calculation" /><figcaption aria-hidden="true">Figure 25 - Area calculation</figcaption>
+</figure>
+<h3 id="lineq">lineq</h3>
+<p>The command:</p>
+<pre><code>lineq Y</code></pre>
+<p>Compute the equation of the line linking the marker positions on the curve Y. The figure 26 shows an example of utilization.</p>
+<figure>
+<img src="img/lineq.png" width="500" alt="Figure 26 - Lineq example" /><figcaption aria-hidden="true">Figure 26 - Lineq example</figcaption>
+</figure>
+<h3 id="linefit">linefit</h3>
+<p>The command:</p>
+<pre><code>linefit Y 1</code></pre>
+<p>Compute the equation of the line fitting the curve Y at the cursor position. The last parameter, which must be either -1 or +1, indicates the direction of the fitting line. The algorithm is:</p>
+<ol type="1">
+<li>Start from the cursor position, in the direction given by the second parameter, and select at least 5 points.</li>
+<li>Do a linear fitting.</li>
+<li>Select an additional point in the same direction.</li>
+<li>If the fitting error exceeds a given limit stop else return to step 2. The figure 27 shows the result of the calculation.</li>
+</ol>
+<figure>
+<img src="img/linefit.png" width="500" alt="Figure 27 - Linefit example" /><figcaption aria-hidden="true">Figure 27 - Linefit example</figcaption>
+</figure>
+<h3 id="onset">onset</h3>
+<p>This command is used to determine the onset of a peak. The onset is an important feature of a peak. For example, in thermal analysis, the onset temperature does not depend on the heating rate unlike the temperature of the peak maximum.</p>
+<p>Before using the onset command, both markers must be positioned to indicate the beginning and the approximate place of the inflection point at the base of the peak. The <em>onset</em> procedure makes use of the <em>linefit</em> function; indeed the process is:</p>
+<ul>
+<li>Call <em>linfit</em> with direction = -1 to get the line equation of the baseline at the first marker position.</li>
+<li>Call <em>linfit</em> with direction = +1 to get the line equation of the line fitting the peak at the second marker position.</li>
+<li>Calculate the coordinates of the intersection of these two lines. This is the peak onset.</li>
+</ul>
+<p>The command is:</p>
+<pre><code>onset Y</code></pre>
+<p>The figure 28 shows an example of the calculation.</p>
+<figure>
+<img src="img/onset.png" width="500" alt="Figure 28 - Peak onset computation" /><figcaption aria-hidden="true">Figure 28 - Peak onset computation</figcaption>
+</figure>
+<h2 id="operations-changing-all-the-elements-of-vectors">Operations changing all the elements of vectors</h2>
+<h3 id="creating-a-vector">Creating a vector</h3>
+<p>The command to create a new vector V is:</p>
+<pre><code>newv Vname Vinit,Vend,stepsiz</code></pre>
+<p>where <em>Vname</em> is the vector name, <em>Vinit</em> is the first value, <em>Vend</em> is the last value and <em>stepsiz</em> is the difference between each value. A new data block is created to contain this new vector. For exemple the command:</p>
+<pre><code>newv X 0,9,1</code></pre>
+<p>create a new data block containing the new vector X whose 10 elements are: 0,1,2,3,4,5,6,7,8,9</p>
+<h3 id="deleting-a-vector">Deleting a vector</h3>
+<p>The command to delete the vector V is:</p>
+<pre><code>delv V</code></pre>
+<h3 id="exchange-the-elements-between-two-vectors">Exchange the elements between two vectors</h3>
+<p>The command:</p>
+<pre><code>swapv V1 V2</code></pre>
+<p>exchange all the elements between V1 and V2. This commande exchange only the values not the vector names.</p>
+<h3 id="deleting-a-data-block">Deleting a data block</h3>
+<p>The command to delete the data block number n is:</p>
+<pre><code>delb n</code></pre>
+<p>This delete all the vectors in the data block. Of course this will delete all the curves which used these vectors.</p>
+<h3 id="merging-data-blocks">Merging data blocks</h3>
+<p>The syntax of the <em>mergeb</em> command is:</p>
+<pre><code>mergeb 1 2</code></pre>
+<p>This command copies all the vectors of the block 2 at the end of the block 1 and then delete the block 2. Of course, the vectors must have the same number of elements in both blocks.</p>
+<h3 id="scalar-operations-on-a-vector">Scalar operations on a vector</h3>
+<ul>
+<li><strong>V2 = V1 + n</strong> : Add the scalar n to all elements in V1</li>
+<li><strong>V2 = V1 - n</strong> : Subtract the scalar n to all elements in V1</li>
+<li><strong>V2 = V1 * n</strong> : Multiply all elements in V1 by the scalar n</li>
+<li><strong>V2 = V1 / n</strong> : Divide all elements in V1 by the scalar n</li>
+</ul>
+<p>If V2 does not exist, a new variable is created. If V2 preexists, its previous content is lost.</p>
+<h3 id="operations-between-vectors">Operations between vectors</h3>
+<ul>
+<li><strong>V2 = V1</strong> : Copy V1 in V2 (duplicate V1 if V2 does not exist)</li>
+<li><strong>V1 = V1 + V2</strong> : Add V2 to V1 element-wise</li>
+<li><strong>V1 = V1 - V2</strong> : Subtract V2 from V1 element-wise</li>
+<li><strong>V1 = V1 * V2</strong> : Element-wise multiplication</li>
+<li><strong>V1 = V1 / V2</strong> : Element-wise division</li>
+</ul>
+<h3 id="applying-a-function-on-a-vector">Applying a function on a vector</h3>
+<p>The main mathematical functions can be applied to a vector (element-wise). The result is a vector with the same number of elements.</p>
+<ul>
+<li>trigonometric: <strong>sin</strong>, <strong>cos</strong>, <strong>tan</strong></li>
+<li>inverse trigonometric: <strong>arcsin</strong>, <strong>arccos</strong>, <strong>arctan</strong></li>
+<li>hyperbolic: <strong>sinh</strong>, <strong>cosh</strong>, <strong>tanh</strong></li>
+<li>inverse hyperbolic: <strong>arcsinh</strong>, <strong>arccosh</strong>, <strong>arctanh</strong></li>
+<li>exponential: <strong>exp</strong></li>
+<li>natural logarithm and base 10 logarithm: <strong>log</strong>, <strong>log10</strong></li>
+<li>square: <strong>square</strong></li>
+<li>square root: <strong>sqrt</strong></li>
+<li>absolute value: <strong>fabs</strong></li>
+<li>power: <strong>power(V,n)</strong> raises all the elements of V to power n.</li>
+<li>cumulative product: <strong>cumprod(V)</strong> returns the cumulative product of the V elements.</li>
+<li>gradient: <strong>gradient(V)</strong> returns the gradient of the vector V.</li>
+<li>cumulative sum: <strong>cumsum(V)</strong> returns the cumulative sum of the V elements. It has the opposite action of <em>gradient(V)</em>.</li>
+</ul>
+<p>To illustrate <em>gradient</em> and <em>cumsum</em> functions, figure 29 shows the result of the execution of the following script sequence:</p>
+<pre><code>newv X 0,6.28,0.01
+Y = sin(X)
+dY = gradient(Y)
+S = cumsum(dY)
+dY_dX = dY/0.01
+plot X,Y
+plot X,dY_dX
+plot X,S</code></pre>
+<p>Y is the sin(X) function. We see that Y and S curves (the cumsum of gradient) overlap almost perfectly (the shift decreases with dX). dY_dX is the gradient dY divided by dX, namely an approximation of the Y derivative, which is cos(X).</p>
+<figure>
+<img src="img/gradient+cumsum.png" width="500" alt="Figure 29 - gradient and cumsum example" /><figcaption aria-hidden="true">Figure 29 - gradient and cumsum example</figcaption>
+</figure>
+<h3 id="shrink">shrink</h3>
+<p>This command reduces the number of elements in a vector. It takes two parameters, the vector name and the reducing factor which must be in the range 2-10. This operation implies to reduce the number of elements of all the other vectors in the data block. For example, the command:</p>
+<pre><code>shrink V 4</code></pre>
+<p>reduces in the number of elements in V by a factor 4.</p>
+<h3 id="revert">revert</h3>
+<p>This command:</p>
+<pre><code>revert V</code></pre>
+<p>will revert the order of elements in V. It takes only one parameter, the vector name. All the vectors belonging to the same data block will have their elements reverted as well.</p>
+<h3 id="sort">sort</h3>
+<p>This command:</p>
+<pre><code>sort V</code></pre>
+<p>will sort the elements of the vector V in ascending order. It takes only one parameter, the vector name. All the vectors belonging to the same data block will have the order of their elements changed but not necessarily sorted. To sort the vector elements in reverse order, first <em>sort</em> V then <a href="#revert"><em>revert</em></a> V.</p>
+<h3 id="irabs">IRabs</h3>
+<p>This command:</p>
+<pre><code>IRabs</code></pre>
+<p>converts an IR spectrum in absorbance. It takes no parameter. It will generate an error if the first data block does not contain an IR spectrum in transmittance.</p>
+<h3 id="irtrans">IRtrans</h3>
+<p>This command:</p>
+<pre><code>IRtrans</code></pre>
+<p>converts an IR spectrum in transmittance. It takes no parameter. It will generate an error if the first data block does not contain an IR spectrum in absorbance.</p>
+<h3 id="fft">fft</h3>
+<p>This command :</p>
+<pre><code>fft V</code></pre>
+<p>computes the <a href="https://en.wikipedia.org/wiki/Fast_Fourier_transform">Discrete Fast Fourier Transform</a> of a vector. It takes only one parameter, the vector name. The result of the conversion is saved in a file named as XXX-fft.txt where XXX is the vector name.</p>
+<h3 id="despike">despike</h3>
+<p>This command removes spikes in a vector. It takes two parameters, the vector name and the window size:</p>
+<pre><code>despike Vname winsiz </code></pre>
+<p>The window size corresponds to the width of the spikes in number of points. It must be an odd number. Defaut size is 3. The figure 30 shows an example of use. The blue curve (I) is the original signal and the red curve shows the signal after using the command:</p>
+<pre><code>despike Ides 3</code></pre>
+<figure>
+<img src="img/despike.png" width="500" alt="Figure 30 - Despike example" /><figcaption aria-hidden="true">Figure 30 - Despike example</figcaption>
+</figure>
+<h3 id="delmultx">delmultx</h3>
+<p>The command:</p>
+<pre><code>delmultx X</code></pre>
+<p>sorts X in ascending order and then removes duplicates. It processes only the data block containing the vector X. Moreover X must be the first vector of the data block. This command must be executed before using the <a href="#interpolation">Interpolation tool</a>.</p>
+<h3 id="ndec">ndec</h3>
+<p>This command changes the precision (number of decimal places) of all the vector elements. For example the command:</p>
+<pre><code>ndec V 5</code></pre>
+<p>set the precision of all elements of V to 5 decimal places</p>
+<h2 id="operations-changing-only-a-part-of-vector-elements">Operations changing only a part of vector elements</h2>
+<h3 id="clipping-data">Clipping data</h3>
+<p>There are four commands for clipping. The commands for clipping along the y-axis are:</p>
+<pre><code>clipup vname maxval
+clipdn vname minval</code></pre>
+<p>The first replaces in the vector <em>vname</em> all elements larger than <em>maxval</em> by <em>maxval</em>. The second replaces in the vector <em>vname</em> all elements lower than <em>minval</em> by <em>minval</em>.</p>
+<p>The commands for clipping along the x-axis are:</p>
+<pre><code>clipx &lt; minval
+clipx &gt; maxval</code></pre>
+<p>The first deletes in the vector <em>vname</em> all elements lower than <em>minval</em>. The second deletes in the vector <em>vname</em> all elements larger than <em>maxval</em>. It should be noted that clipping along y-axis does not change the number of points whereas clipping along x-axis decreases the number of points.</p>
+<p>The figure 31 shows an example where the vector Yclip has been obtained by executing the command:</p>
+<pre><code>Yclip = Y
+clipup Yclip 1
+clipdn Yclip -1</code></pre>
+<figure>
+<img src="img/clipy.png" width="500" alt="Figure 31 - Clip example" /><figcaption aria-hidden="true">Figure 31 - Clip example</figcaption>
+</figure>
+<h3 id="line">line</h3>
+<p>The <em>line</em> command joins, by a straight line, the points of a curve situated at the marker positions. This procedure does not delete the points between the markers but change their position.</p>
+<pre><code>line Y</code></pre>
+<h3 id="shift">shift</h3>
+<p>The <em>shift</em> command shifts vertically the portion of a curve delimited by the markers. For example, the command:</p>
+<pre><code>shift Y 0.1</code></pre>
+<p>add 0.1 to the points located between the marker positions. This is illustrated by figure 32.</p>
+<figure>
+<img src="img/shift.png" width="500" alt="Figure 32 - Shift example" /><figcaption aria-hidden="true">Figure 32 - Shift example</figcaption>
+</figure>
+<h2 id="running-python-scripts">Running Python scripts</h2>
+<p>The <em>Execute a Python script</em> option in the <em>Script</em> menu executes the Python script in the <em>Script window</em> of the active pyDataVis window.</p>
+<p>pyDataVis does several steps before the execution: - The vectors of the active curve are saved in the file “input.txt”. - The following Python code is added before the script:</p>
+<pre><code>import numpy as np
+A = np.loadtxt(&quot;input.txt&quot;)
+X = A[0]
+Y = A[1]</code></pre>
+<p>In this way, the vectors of the active curve can be accessed as X and Y. The output of the Python process is shown in the <em>Information window</em> and saved in the file “output.txt”.</p>
+<p>An application of this option may be to use the powerful <a href="https://www.scipy.org/">Scipy</a> library to do some tasks not implemented in pyDataVis. Here is an example of a script using the <em>curve_fit</em> function in the <em>scipy.optimize</em> module to fit a user defined function to data.</p>
+<pre><code>import matplotlib.pyplot as plt
+from scipy.optimize import curve_fit
+
+def func(x, a, b):
+    return a * np.log(-b * np.log(x))
+
+popt, pcov = curve_fit(func, X, Y)
+
+sresult = &quot;Best fit parameters: a={0:g}, b={1:g}&quot;.format(popt[0], popt[1])
+print (sresult)
+plt.plot(X, Y, &#39;bo&#39;)
+plt.plot(X, func(X, *popt), &#39;r-&#39;)
+plt.suptitle(sresult)
+plt.show()</code></pre>
+<p>The function used to fit the data is: <span class="math inline">\(Y = a \cdot log \left( -b \cdot log(X) \right)\)</span></p>
+<p>The figure 33 shows the result of the script execution.</p>
+<figure>
+<img src="img/pyscript.png" width="500" alt="Figure 33 - Python script example" /><figcaption aria-hidden="true">Figure 33 - Python script example</figcaption>
+</figure>
+<h1 id="alphabetical-list-of-script-commands">Alphabetical list of script commands</h1>
+<ul>
+<li><strong>area</strong> Y : Compute the area under the curve Y. The limits must be indicated by the marker positions.</li>
+<li><strong>arrow</strong> x, y, length, angle, b : Draw at x,y a blue arrow of length 40 making an angle of ‘angle’ with horizontal.</li>
+<li><strong>BET</strong> : Compute optimum BET surface area and BET constant.</li>
+<li><strong>clipup</strong> Y maxval : Replace in the vector Y all elements larger than maxval by maxval.</li>
+<li><strong>clipdn</strong> Y minval : Replace in the vector Y all elements lower than minval by minval.</li>
+<li><strong>clipx</strong> &lt; minval : Delete all elements located below minval in the vector used as abscissa.</li>
+<li><strong>clipx</strong> &gt; maxval : Delete all elements located above maxval in the vector used as abscissa.</li>
+<li><strong>delb b1</strong> : Delete the data block b1.<br />
+</li>
+<li><strong>delv V</strong> : Delete the vector V.</li>
+<li><strong>delmultx</strong> X: Sort X in ascending order and then remove duplicates.</li>
+<li><strong>despike</strong> V winsiz : Removes spikes, which point width are lower than winsiz, in V.</li>
+<li><strong>labX</strong> Time (s) : Display ‘Time (s)’ as label of X axis.</li>
+<li><strong>fft</strong> V : Compute the Discrete Fast Fourier Transform of V.</li>
+<li><strong>IRabs</strong> : Convert an IR spectrum in absorbance.</li>
+<li><strong>IRtrans</strong> : Convert an IR spectrum in transmittance.</li>
+<li><strong>labY1</strong> Rate (rpm) : Display ‘Rate (rpm)’ as label of Y1 axis.</li>
+<li><strong>labY2</strong> Intensity : Display ‘Intensity’ as label of Y2 axis.</li>
+<li><strong>lineq</strong> V1 : Compute, for curve V1, the equation of the line linking marker positions.</li>
+<li><strong>linefit</strong> V1 -1 : Compute the equation of the line fitting the curve V1 at the cursor position. The last parameter, which must be either -1 or +1, indicates the direction of the fitting line.</li>
+<li><strong>merge b1 b2</strong> : Merge the data blocks b1 and b2 together</li>
+<li><strong>name</strong> V1 as V2 : Give to the vector V1 the name V2.</li>
+<li><strong>ndec</strong> V n : Set the number of decimal places to n for all V elements.</li>
+<li><strong>newv</strong> Vnam Vi, Vf, step : Create a vector whose name is Vnam, first element is Vi, last element Vend and difference between each element is step.</li>
+<li><strong>nosymbol</strong> Y : Do not draw symbols on the location of data points for the vector Y.</li>
+<li><strong>onset</strong> V : Determine the onset of a peak. Both markers are used to indicate the baseline and the approximate place of the inflection.</li>
+<li><strong>plot</strong> X,Y : Plot Y against X. Each curve require a separate plot command.</li>
+<li><strong>plot</strong> X,Y,2 : Plot Y against X using a secondary Y axis.</li>
+<li><strong>revert</strong> V : Revert the order of elements in V.</li>
+<li><strong>shift</strong> Y v: Add the value v to the portion of Y curve delimited by the markers.</li>
+<li><strong>shrink</strong> V n : Reduce in the number of elements in V by a factor n.</li>
+<li><strong>stats</strong> V : Return statistics on V.</li>
+<li><strong>sort</strong> V : Sort the elements of the vector V in ascending order.</li>
+<li><strong>swapv V1 V2</strong> : Exchange all the elements between vectors V1 and V2. Does not change the names.</li>
+<li><strong>text</strong> x, y, title, r, 14 : Write ‘title’ at x,y using a red font with size 14.</li>
+<li><strong>symbol</strong> Y : Draw symbols on the location of data points for the vector Y.</li>
+</ul>
+<h1 id="alphabetical-list-of-keyboard-shortcuts">Alphabetical list of keyboard shortcuts</h1>
+<ul>
+<li><strong>Ctrl+Shift+B</strong> : Duplicate a curve.</li>
+<li><strong>Ctrl+Shift+C</strong> : Copy a curve in memory.</li>
+<li><strong>Ctrl+Shift+D</strong> : Delete a curve.</li>
+<li><strong>Ctrl+D</strong> : Move the cursor to the next curve.</li>
+<li><strong>Ctrl+F</strong> : Move the cursor to the first point.</li>
+<li><strong>Ctrl+L</strong> : Move the cursor to the last point.</li>
+<li><strong>Ctrl+LArrow</strong> : Move the cursor to the previous point.</li>
+<li><strong>Crtl+M</strong> : Set a marker at cursor position.</li>
+<li><strong>Ctrl+N</strong> : Create a new empty pyDataVis window.</li>
+<li><strong>Ctrl+O</strong> : Open a file.</li>
+<li><strong>Crtl+Q</strong> : Quit the pyDataVis application.</li>
+<li><strong>Crtl+R</strong> : Remove all the markers cursor included.</li>
+<li><strong>Ctrl+RArrow</strong> : Move the cursor to the next point.</li>
+<li><strong>Ctrl+S</strong> : Save to file the data in active window.</li>
+<li><strong>Ctrl+Shift+S</strong> : Save the data in active window in a file, using a new filename.</li>
+<li><strong>Ctrl+T</strong> : Show the data table.</li>
+<li><strong>Ctrl+U</strong> : Move the cursor to the previous curve.</li>
+<li><strong>Ctrl+Shift+V</strong> : Paste the curve stored in memory.</li>
+<li><strong>Ctrl+Shift+X</strong> : Copy a curve in memory then delete it.</li>
+</ul>
+</body>
+</html>
