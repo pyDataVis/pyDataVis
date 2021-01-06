@@ -133,8 +133,11 @@
 <li><a href="#overview">Overview</a></li>
 <li><a href="#installation">Installation</a>
 <ul>
-<li><a href="#usage">Usage</a></li>
+<li><a href="#installation-from-debian-package">Installation from Debian package</a></li>
+<li><a href="#installation-from-windows-package">Installation from Windows package</a></li>
+<li><a href="#installation-from-source-archives">Installation from source archives</a></li>
 </ul></li>
+<li><a href="#support">Support</a></li>
 <li><a href="#loading-data-in-pydatavis">Loading data in pyDataVis</a>
 <ul>
 <li><a href="#reading-spectra-in-jcamp-dx-format">Reading spectra in JCAMP-DX format</a></li>
@@ -248,20 +251,32 @@
 <img src="img/pyDataVis-wnd.png" width="600" alt="Figure 1 - A pyDataVis window" /><figcaption aria-hidden="true">Figure 1 - A pyDataVis window</figcaption>
 </figure>
 <h1 id="installation">Installation</h1>
+<h2 id="installation-from-debian-package">Installation from Debian package</h2>
+<p>This package can be found on the <a href="https://pyDataVis.github.io">website</a> of pyDataVis, in <a href="https://pydatavis.github.io/Downloads.html">Downloads page</a>. To install, assuming that the .deb file is in Downloads folder, open a Terminal and type:</p>
+<pre><code>cd Downloads
+sudo dpkg -i pyDataVis.deb</code></pre>
+<p>The application files are in /opt/pyDataVis. To uninstall the application, you can use:</p>
+<pre><code>sudo dpkg --purge pyDataVis</code></pre>
+<h2 id="installation-from-windows-package">Installation from Windows package</h2>
+<p>This package archive can be found on the <a href="https://pyDataVis.github.io">website</a> of pyDataVis, in <a href="https://pydatavis.github.io/Downloads.html">Downloads page</a>. To install, copy the .zip file to the location where you want store the program. Then extract all files from the archive. To launch the application, open the folder pyDataVis and execute the file <em>pyDataVis.exe</em>.</p>
+<p>To remove the application you only have to delete the pyDataVis folder.</p>
+<h2 id="installation-from-source-archives">Installation from source archives</h2>
 <p>pyDataVis requires Python 3, PyQt5, Numpy, Pandas, Scipy and Matplotlib. The easiest way to install everything is to use Open Source <a href="https://www.anaconda.com/products/individual">Anaconda</a> that will “just work” out of the box for Windows, macOS and common Linux platforms.</p>
-<p>Then open a Terminal and change the current working directory to the location where you want to copy the pyDataVis folder, for example ~/myprog:</p>
+<p>The source archives can be found on the <a href="https://pyDataVis.github.io">website</a> of pyDataVis, in <a href="https://pydatavis.github.io/Downloads.html">Downloads page</a>. Extract the archive to the place where you want to store the program.</p>
+<p>If you have <a href="https://git-scm.com/">git</a> installed you can also clone the repository. Open a Terminal and change the current working directory to the location where you want to clone pyDataVis, for example ~/myprog:</p>
 <pre><code>cd ~/myprog</code></pre>
 <p>Then type:</p>
 <pre><code>git clone https://github.com/pyDataVis/pyDataVis.git</code></pre>
-<h2 id="usage">Usage</h2>
-<p>Change the current working directory to the pyDataVis folder:</p>
+<p>To launch the application, change the current working directory to the pyDataVis folder, for example ~/myprog/pyDataVis:</p>
 <pre><code>cd ~/myprog/pyDataVis</code></pre>
 <p>and execute the pyDataVis.py script:</p>
 <pre><code>python pyDataVis.py</code></pre>
-<p><strong>Examples</strong></p>
-<p>The folder <em>examples</em> contains files for testing almost any function. Instructions are given in the readme.txt file and a picture file (.png) shows the Plotting area at the end of the process.</p>
+<h1 id="support">Support</h1>
+<p>To display the manual, open the page https://pydatavis.github.io/ in your browser or use the <em>Help</em> option in the <em>Help</em> menu.</p>
+<p>The folder <em>examples</em>, in the source archives, contains files for testing almost any function. For those who have not installed from source archives, they can be found on the <a href="https://pyDataVis.github.io">website</a> of pyDataVis, in <a href="https://pydatavis.github.io/Downloads.html">Downloads page</a>.</p>
+<p>If you need more information, feel free to contact me at: palphonse@wanadoo.fr</p>
 <h1 id="loading-data-in-pydatavis">Loading data in pyDataVis</h1>
-<p>The text data is always loaded in the <em>Text editor window</em> before been processed. There are two ways to supply data in the <em>Text editor window</em>:</p>
+<p>The text data is always loaded first in the <em>Text editor window</em> before been processed. Then pyDataVis tries to decode the data. If successfull it will plot the curves. There are two ways to supply data in the <em>Text editor window</em>:</p>
 <ul>
 <li><p>The usual way is to load the data from a file. This is done either by selecting <em>Open</em> in the <em>File</em> menu or by dragging the file, from the file manager or the desktop, in the pyDataVis window.</p></li>
 <li><p>The second way is to enter the data manually. For example, using the key sequence Ctrl+N (or selecting <em>New</em> in the <em>File</em> menu) opens a new empty pyDataVis window. You may then input the data in the Text editor window. It is also possible to paste text data from an other application. Translation of this data in vectors and plotting the resulting curves is done by selecting <em>Update from text</em> in <em>File</em> menu.</p></li>
