@@ -5,8 +5,22 @@
 *pyDataVis* is written in [Python](https://en.wikipedia.org/wiki/Python_(programming_language)) and use [PyQt](https://riverbankcomputing.com/software/pyqt/) as graphic user interface (GUI) and [Matplotlib](https://matplotlib.org/) for plotting.
 
 
-# Installation
+## Installation
 
+### Installation from Debian package
+This package can be found on the [website](https://pyDataVis.github.io) of pyDataVis, in [Downloads page](https://pydatavis.github.io/Downloads.html).
+Assuming that the .deb file is in Downloads folder, to install, open a Terminal and type:
+```
+cd Downloads
+sudo dpkg -i pyDataVis.deb
+```
+
+### Installation from Windows package
+This package archive can be found on the [website](https://pyDataVis.github.io) of pyDataVis, in [Downloads page](https://pydatavis.github.io/Downloads.html).
+To install, copy the .zip file to the location where you want store the program. Then extract all files from the archive. To launch the application, in the folder pyDataVis, execute the file *pyDataVis.exe*.
+
+
+### Installation from source archives
 pyDataVis requires Python 3, PyQt5, Numpy, Pandas, Scipy and Matplotlib. The easiest way to install everything is to use Open Source [Anaconda](https://www.anaconda.com/products/individual) that will "just work" out of the box for Windows, macOS and common Linux platforms.
 
 Then open a Terminal and change the current working directory to the location where you want to copy the pyDataVis folder, for example ~/myprog:
@@ -17,11 +31,9 @@ Then type:
 ```
 git clone https://github.com/pyDataVis/pyDataVis.git
 ```
+The source archives can also be found on the [website](https://pyDataVis.github.io) of pyDataVis, in [Downloads page](https://pydatavis.github.io/Downloads.html).
 
-
-## Usage
-
-Change the current working directory to the pyDataVis folder:
+To launch the application, change the current working directory to the pyDataVis folder:
 ```
 cd ~/myprog/pyDataVis
 ```
@@ -34,7 +46,7 @@ python pyDataVis.py
 ## Support
 To display the manual, open the page https://pydatavis.github.io/ in your browser or use the *Help* option in the *Help* menu.
 
-The folder *examples* contains files for testing almost any function.
+The folder *examples*, in the source archives, contains files for testing almost any function.
 
 If you need more information, feel free to contact me at: palphonse@wanadoo.fr
 
