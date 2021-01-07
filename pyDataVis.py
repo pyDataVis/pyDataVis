@@ -204,13 +204,13 @@ class infoDlg(QtWidgets.QDialog):
         self.hide()
 
     def showLicense(self):
-        licfil = "{0}/LICENSE.txt".format(self.parent.progpath)
+        licfil = "{0}/LICENSE".format(self.parent.progpath)
         if os.path.isfile(licfil):
             fo = open(licfil, 'r')
             txt = fo.read()
             fo.close()
             msg = QtWidgets.QMessageBox()
-            msg.setIcon(QtWidgets.QMessageBox.Information)
+            msg.setFont(self.parent.txteditfont)
             msg.setText(txt)
             msg.setWindowTitle("pyDataVis License")
             msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
@@ -2094,8 +2094,11 @@ class MainWindow(QtWidgets.QMainWindow):
         :return: nothing.
         """
         import webbrowser
-        url = '{0}/docs/pyDataVis.html'.format(self.progpath)
-        webbrowser.open(url)
+        url = 'https://pydatavis.github.io/pyDataVis.html'
+        if platform.system() == "Darwin":
+            webbrowser._browsers['safari'][1].open(url)
+        else:
+            webbrowser.open(url)
 
 
     def getDataFromUrl(self, copydir, url):
