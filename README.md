@@ -26,7 +26,7 @@ pyDataVis requires Python 3, PyQt5, Numpy, Pandas, Scipy and Matplotlib. The eas
 
 The source archives can be found on the [website](https://pyDataVis.github.io) of pyDataVis, in [Downloads page](https://pydatavis.github.io/Downloads.html). Extract the archive to the place where you want to store the program.
 
-If you have [git](https://git-scm.com/) installed you can also clone the repository.
+You can instead clone the repository if you have [git](https://git-scm.com/) installed.
 Open a Terminal and change the current working directory to the location where you want to clone pyDataVis, for example ~/myprog:
 ```
 cd ~/myprog
