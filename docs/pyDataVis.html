@@ -466,8 +466,8 @@ sudo dpkg -i pyDataVis.deb</code></pre>
 <figure>
 <img src="img/peakFit1.png" width="500" alt="Figure 12 - Peak fitting tool" /><figcaption aria-hidden="true">Figure 12 - Peak fitting tool</figcaption>
 </figure>
-<p>Below the plotting area, the results of the fitting process are shown in an information area (read only). As in the case of <a href="#curve-fitting"><em>Curve fitting</em></a> an estimation of the goodness of the fit is given through the RMSE value, already defined above in the <a href="#curve-fitting"><em>Curve fitting</em></a> tool. Below the text information area is the Peak parameters area. Here, the value of the peak parameters can be modified after which the fitting process can be launched again by clicking on the <em>Compute</em> button. The fitting results are saved in the log file.</p>
-<p>When the fitting module is called from the <em>Finding peak</em> option, it uses a Gaussian function to model each peak shape. It is clear that the Gaussian type is not well suited to represent the peak shapes in the case of the experimental data shown in the previous figure. It is possible to change the peak model by replacing the peak parameters, G, by another type. pyDataVis allows to choose between six peak types:</p>
+<p>Below the plotting area, there is the information area (read only). As in the case of <a href="#curve-fitting"><em>Curve fitting</em></a> an estimation of the goodness of the fit is given through the RMSE value, already defined above in the <a href="#curve-fitting"><em>Curve fitting</em></a> tool. Below the information area is the Peak parameters area. Here, the value of the peak parameters can be modified after which the fitting process can be launched again by clicking on the <em>Compute</em> button. The fitting results are saved in the log file.</p>
+<p>When the fitting module is called from the <em>Finding peak</em> option, it always uses a Gaussian function to model each peak shape. The Gaussian type is not the best to represent the peak shapes in the case of the experimental data shown in the previous figure. It is possible to change the peak model by replacing the peak parameters, G, by another type. pyDataVis allows to choose between six peak types:</p>
 <ul>
 <li>G : Gaussian</li>
 <li>L : Lorentzian</li>
@@ -486,12 +486,12 @@ sudo dpkg -i pyDataVis.deb</code></pre>
 <figure>
 <img src="img/peakModels.png" width="600" alt="Figure 13 - Peak models" /><figcaption aria-hidden="true">Figure 13 - Peak models</figcaption>
 </figure>
-<p>It is important to notice that, in the peak parameter area, for each peak, six parameters are always provided even when they are not relevant, in which case they are set to zero. Besides, unlike the other, the a and b parameters can correspond to different things according to the peak type. For example, a, corresponds to the mixing parameter (m) for pseudo-Voigt model and to the skewness factor (a) for asymmetric Gaussian model.</p>
-<p>Let us return to the peak fitting window and replace, for both peaks, the peak type parameter, G, by AP. We do not modify the other parameters and click on <em>Compute</em> button. The figure 14 shows that this fairly improves the fitting result.</p>
+<p>It is important to notice that, in the peak parameter area, for each peak, six parameters are always provided even when they are not relevant, in which case they are set to zero. The extra parameters are <em>m</em>, the mixing parameter for pseudo-Voigt model and <em>a</em> the skewness factor for asymmetric models.</p>
+<p>Let us return to the peak fitting window and replace, for both peaks, the peak type parameter, G, by L. We do not modify the other parameters and click on <em>Compute</em> button. The figure 14 shows that this improves the fitting result.</p>
 <figure>
-<img src="img/peakFit2.png" width="500" alt="Figure 14 - Peak fitting with AP model" /><figcaption aria-hidden="true">Figure 14 - Peak fitting with AP model</figcaption>
+<img src="img/peakFit2.png" width="500" alt="Figure 14 - Peak fitting with L model" /><figcaption aria-hidden="true">Figure 14 - Peak fitting with L model</figcaption>
 </figure>
-<p>Clicking on <em>OK</em> generates a file named “peakFit.txt” and opens a new pyDataVis window to display its content. The plotting area is shown in figure 15. There are four curves: the experimental data, the sum of peaks and the curve for each peak.</p>
+<p>Clicking on <em>OK</em> generates a file named “peakFit.txt” and opens a new pyDataVis window to display its content. The plotting area is shown in figure 15. There are 10 curves: the experimental data, the sum of peaks and the curve for each peak.</p>
 <figure>
 <img src="img/peakFit3.png" width="500" alt="Figure 15 - Peak fitting file" /><figcaption aria-hidden="true">Figure 15 - Peak fitting file</figcaption>
 </figure>

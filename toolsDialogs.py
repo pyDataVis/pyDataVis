@@ -6,6 +6,7 @@ from PyQt5 import QtGui, QtWidgets
 import datetime
 import numpy as np
 from operator import itemgetter
+from scipy.optimize import least_squares
 from scipy.optimize import leastsq
 from scipy import interpolate, signal
 from matplotlib.figure import Figure
@@ -667,6 +668,7 @@ class fitCurveDlg(QtWidgets.QDialog):
         """ Interactive Curve Fitting Tool dialog.
 
         :param parent: pyDataVis MainWindow.
+        :param pltw: PlotWin containing the data
         :param cpos: it is the curve position in plotWin.curvelist.
         :param model: the fitting model.
         """
@@ -862,7 +864,6 @@ class fitCurveDlg(QtWidgets.QDialog):
 
         elif self.model == 1:
             # Fitting with exponential equation A*exp(B*x)
-            from scipy.optimize import leastsq
             # initial guesses
             p0 = [self.parmVal[0], self.parmVal[1]]
             pbest1 = leastsq(self.residuals_Exp, p0, args=(self.data[1], self.data[0]))
@@ -877,7 +878,6 @@ class fitCurveDlg(QtWidgets.QDialog):
 
         elif self.model == 2:
             # Fitting with logarithm equation A*Ln(x)+B
-            from scipy.optimize import leastsq
             # initial guesses
             p0 = [self.parmVal[0], self.parmVal[1]]
             pbest1 = leastsq(self.residuals_Log, p0, args=(self.data[1], self.data[0]))
@@ -892,7 +892,6 @@ class fitCurveDlg(QtWidgets.QDialog):
 
         elif self.model == 3:
             # Fitting with Arrhenius equation A*exp(-(E/(R*(x+273))))
-            from scipy.optimize import leastsq
             # initial guesses
             p0 = [self.parmVal[0], self.parmVal[1]]
             pbest1 = leastsq(self.residuals_Arr, p0, args=(self.data[1], self.data[0]))
@@ -907,7 +906,6 @@ class fitCurveDlg(QtWidgets.QDialog):
 
         elif self.model == 4:
             # Fitting data with Power model
-            from scipy.optimize import leastsq
             # initial guesses
             p0 = [self.parmVal[0], self.parmVal[1]]
             pbest1 = leastsq(self.residuals_PL, p0, args=(self.data[1], self.data[0]))
@@ -922,7 +920,6 @@ class fitCurveDlg(QtWidgets.QDialog):
 
         elif self.model == 5:
             # Fitting Rheo data with Herschel-Bulkley model
-            from scipy.optimize import leastsq
             # initial guesses
             p0 = [self.parmVal[0], self.parmVal[1], self.parmVal[2]]
             pbest1 = leastsq(self.residuals_HB, p0, args=(self.data[1], self.data[0]))
@@ -937,7 +934,6 @@ class fitCurveDlg(QtWidgets.QDialog):
 
         elif self.model == 6:
             # Fitting with sigmoid S+H/(1+exp(-lambda*x)
-            from scipy.optimize import leastsq
             # initial guesses
             p0 = [self.parmVal[0], self.parmVal[1], self.parmVal[2], self.parmVal[3]]
             pbest1 = leastsq(self.residuals_Sigm, p0, args=(self.data[1], self.data[0]))
@@ -956,8 +952,6 @@ class fitCurveDlg(QtWidgets.QDialog):
 
         # Show results in log windows
         self.log.setText(msg)
-        # write current date and time from now variable
-        msg = "#\n#%s\n" % datetime.datetime.now() + msg
         self.saveToLogFile(msg)
         self.data[2] = Yfit
         self.data[3] = self.data[2] - self.data[1] - self.diffshift
@@ -1101,6 +1095,8 @@ class fitCurveDlg(QtWidgets.QDialog):
         :return: nothing
         """
         fo = open("logfile.txt", 'a')
+        # prefix with current date and time from now variable
+        msg = "\n#{0}\n".format(datetime.datetime.now()) + msg
         fo.write(msg)
         fo.close()
 
@@ -1148,24 +1144,237 @@ class fitCurveDlg(QtWidgets.QDialog):
         self.hide()
 
 
-#  pkfitDlg ------------------------------------------------------------
 
-class pkfitDlg(QtWidgets.QDialog):
+#  pkfindDlg ------------------------------------------------------------
+
+class pkFindDlg(QtWidgets.QDialog):
+    def __init__(self, parent=None, pltw=None, cpos=None):
+        """ Peak find dialog.
+
+        :param parent: pyDataVis MainWindow.
+        :param pltw: PlotWin containing the data
+        :param cpos: it is the curve position in plotWin.curvelist.
+        """
+        super (pkFindDlg, self).__init__(parent)
+
+        global lastfilename, lastmph, lastmpw    # Store parameters values
+
+        self.parent = parent
+        self.pltw = pltw
+        self.cpos = cpos
+        self.lab = QtWidgets.QLabel("Detection parameters: minHeight, minWidth")
+        self.text = QtWidgets.QLineEdit(self)
+        self.title = "Peak Find Tool"
+        self.setWindowTitle(self.title)
+        self.createLayout()
+
+        blkno = pltw.curvelist[cpos].xvinfo.blkpos
+        xpos = pltw.curvelist[cpos].xvinfo.vidx
+        ypos = pltw.curvelist[cpos].yvinfo.vidx
+        X = pltw.blklst[blkno][xpos]
+        self.Y = pltw.blklst[blkno][ypos]
+        self.npt = len(X)
+        self.xspan = abs(X.max() - X.min())
+        self.yspan = abs(self.Y.max() - self.Y.min())
+        # Fix the case where globals are undefined
+        try:
+            test = lastfilename
+        except NameError:
+            lastfilename = None
+
+        if pltw.filename != lastfilename:
+            # initial guess from data
+            # mph means minimum peak height
+            self.mph = self.yspan / 10
+            self.mph = round_to_n(self.mph, 1)
+            # mpw means minimum peak width
+            self.mpw = self.xspan / 20
+            self.mpw = round_to_n(self.mpw, 1)
+        else:
+            self.mph = lastmph
+            self.mpw = lastmpw
+        # Evaluate the threshold from the standard deviation
+        # calculated on the first 10% of the curve. It is
+        # expected that there is no major peak in this range.
+        self.thres = self.Y[:int(self.npt/10)].std()
+        if self.yspan/self.thres > 10:
+            self.thres = 0.0
+        guess = "{0:g}, {1:g}".format(self.mph, self.mpw)
+        self.text.setText(guess)
+
+
+    def createLayout(self):
+        """ Create the layout of the Peak Fitting dialog.
+
+        :return: nothing
+        """
+        hbox = QtWidgets.QHBoxLayout()
+        hbox.addStretch(1)
+        okBtn = QtWidgets.QPushButton("OK")
+        okBtn.clicked.connect(self.validate)
+        cancelBtn = QtWidgets.QPushButton("Cancel")
+        cancelBtn.clicked.connect(self.reject)
+        hbox.addWidget(okBtn)
+        hbox.addWidget(cancelBtn)
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addWidget(self.lab)
+        vbox.addWidget(self.text)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
+
+    def checkUserInput(self):
+        """ Check the user input in QLineEdit.
+
+        :return: True if no error is detected, False otherwise.
+        """
+        prm = []
+        err = ""
+        guess = self.text.text()
+        items = str(guess).split(',')
+        if len(items) != 2:
+            err = "Two parameters must be given"
+        else:
+            for i in range(0, len(items)):
+                val = items[i].strip()
+                if not isNumber(val):
+                    err = "Parameter {0} is not numeric".format(i + 1)
+                    break
+                if float(val) < 0.0:
+                    err = "Parameter {0} is negative".format(i + 1)
+                    break
+                val = float(val)
+                if i == 0 and val > self.yspan:
+                    err = "minHeight is too large"
+                    break
+                if i == 1:
+                    if val < self.xspan/self.npt or val > self.xspan/2:
+                        err = "minWidth is too large"
+                        break
+                prm.append(val)
+        if err:
+            errmsg = "Incorrect input:\n{0}".format(err)
+            QtWidgets.QMessageBox.warning(self, self.title, errmsg)
+            return False
+
+        # Store parameters values in global variables for the next call
+        global lastfilename, lastmph, lastmpw
+        lastfilename = self.pltw.filename
+        self.mph = lastmph = prm[0]
+        self.mpw = lastmpw = prm[1]
+        return True
+
+
+    def validate(self):
+        """ Callback function when user has clicked on OK button.
+
+        :return: nothing
+        """
+        if not self.checkUserInput():
+            return
+        # detect_peaks function requires mpd (= minimum peak distance)
+        # mpw should be converted in mpd
+        mpd = self.mpw * self.npt / self.xspan
+        npk = ntry = 0
+        while npk == 0 and ntry < 5:
+            peakindx, _ = signal.find_peaks(self.Y, height=self.mph,
+                                            distance=mpd, threshold=self.thres)
+            npk = len(peakindx)
+            if npk == 0:
+                if self.thres == 0:
+                    break
+                if ntry == 3:
+                    self.thres = 0.0
+                else:
+                    self.thres /= 2
+                ntry += 1
+        if not npk:
+            QtWidgets.QMessageBox.information(self, self.title, "No peak found")
+            return
+        msg = "{0:d} peaks have been detected, " \
+              "do you want to continue ?".format(npk)
+        ans = QtWidgets.QMessageBox.information(self, self.title, msg,
+                                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        if ans == QtWidgets.QMessageBox.No:
+            self.reject()
+        else:
+            self.peakindx = peakindx
+            self.accept()
+
+
+
+#  getPkDlg ------------------------------------------------------------
+
+class getPkDlg(QtWidgets.QDialog):
+    def __init__(self, parent=None, pkfitdlg=None):
+        """ Get peak parameters from user.
+
+        :param parent: pyDataVis MainWindow.
+        :param plkfitdlg:
+        """
+        super (getPkDlg, self).__init__(parent)
+
+        self.parent = parent
+        self.pkfitdlg = pkfitdlg
+        self.lab = QtWidgets.QLabel("One line per peak: typ, pos, amp, FWHM")
+        self.text = QtWidgets.QTextEdit(self)
+        self.title = "Peak Fit Tool"
+        self.setWindowTitle(self.title)
+        self.createLayout()
+
+
+    def createLayout(self):
+        """ Create the layout of the Peak Fitting dialog.
+
+        :return: nothing
+        """
+        hbox = QtWidgets.QHBoxLayout()
+        hbox.addStretch(1)
+        okBtn = QtWidgets.QPushButton("OK")
+        okBtn.clicked.connect(self.validate)
+        cancelBtn = QtWidgets.QPushButton("Cancel")
+        cancelBtn.clicked.connect(self.reject)
+        hbox.addWidget(okBtn)
+        hbox.addWidget(cancelBtn)
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addWidget(self.lab)
+        vbox.addWidget(self.text)
+        vbox.addLayout(hbox)
+        self.setLayout(vbox)
+
+
+    def validate(self):
+        """ Callback function when user has clicked on OK button.
+
+        :return: nothing
+        """
+        stguess = self.text.toPlainText()
+        if not self.pkfitdlg.checkUserInput(stguess):
+            return
+        self.stguess = stguess
+        self.accept()
+
+
+
+
+#  pkFitDlg ------------------------------------------------------------
+
+class pkFitDlg(QtWidgets.QDialog):
     def __init__(self, parent=None, pltw=None, cpos=None, stguess=None):
         """ Interactive Peak Fitting Tool dialog.
 
          :param parent: pyDataVis MainWindow.
+         :param pltw: PlotWin containing the data
          :param cpos: it is the curve position in plotWin.curvelist.
          :param stguess: string containing the first estimate of
                          the peak parameters.
          """
-        super(pkfitDlg, self).__init__(parent)
+        super(pkFitDlg, self).__init__(parent)
 
         self.parent = parent
         self.title = 'Peak Fitting tool'
         self.pltw = pltw
         self.cpos = cpos
-        self.stguess = stguess
         self.maxparm = 5
         self.first = True
         self.npeaks = 0
@@ -1177,11 +1386,20 @@ class pkfitDlg(QtWidgets.QDialog):
                                self.pltw.blklst[self.blkno][self.ypos],
                                np.zeros(len(self.pltw.blklst[self.blkno][self.xpos]))))
         (self.nvect, self.npt) = self.data.shape
-        self.diffshift = getSpan(self.data[1]) * 0.2
-        if self.data[1].min() + self.diffshift < 0.0:
-            self.diffshift *= -1.0
+        self.diffshift = abs(self.data[1].min() - getSpan(self.data[1]) * 0.15)
 
-        if stguess is not None:
+        if stguess is None:
+            pkdlg = getPkDlg(parent, self)
+            pkdlg.setModal(True)
+            ret = pkdlg.exec()
+            if ret:
+                stguess = pkdlg.stguess
+
+        if stguess is None:
+            self.stguess = None
+            self.close()
+            return
+        else:
             self.stguess = stguess.replace('\n', ',')
             self.guessToParms(self.stguess)
 
@@ -1214,7 +1432,7 @@ class pkfitDlg(QtWidgets.QDialog):
         self.log.setFixedHeight(200)
         self.log.setReadOnly(True)
         # Parameters
-        plab = QtWidgets.QLabel("Peak parameters (type, pos, amp, FWHM, a, b)")
+        plab = QtWidgets.QLabel("Peak parameters (type, pos, amp, FWHM, asym, Lfrac)")
         self.ptext = QtWidgets.QTextEdit(self)
         self.ptext.setCurrentFont(self.parent.txteditfont)
         # Buttons
@@ -1241,11 +1459,13 @@ class pkfitDlg(QtWidgets.QDialog):
         """ Check the user input.
 
         :param stguess: a string containing each peak parameters:
-                        type, pos, amp, width, a, b
+                        type, pos, amp, width, asym, Lfrac
                         separated, by comma, one line per peak
         :return: True if no error is detected, False otherwise.
         """
         lines = stguess.splitlines()
+        if len(lines) == 0:
+            return False
         err = ""
         for l, line in enumerate(lines):
             items = line.split(',')
@@ -1263,15 +1483,36 @@ class pkfitDlg(QtWidgets.QDialog):
                     else:
                         if not isNumber(val):
                             err = "Parameter {0} in not numeric".format(p+1)
-                        else:
-                            if float(val) < 0.0:
-                                if not(pktyp[0] == 'A' and p == 4):
-                                    err = "Parameter {0} is negative".format(p+1)
+                            break
+                        v = float(val)
+                        if p == 1:  # xm
+                            if v < self.data[0].min() or v > self.data[0].max():
+                                err = "Parameter {0} out of range".format(p+1)
+                                break
+                        if p == 2:  # amp
+                            if v < self.data[1].min() * 1.1 \
+                                    or v > self.data[1].max() * 1.1:
+                                err = "Parameter {0} out of range".format(p+1)
+                                break
+                        if p == 3:  # w
+                            xspan = getSpan(self.data[0])
+                            if v < xspan / self.npt or v > (xspan / 2):
+                                err = "Parameter {0} out of range".format(p+1)
+                                break
+                        if p == 4:  # asym
+                            maxasym = 1000 / self.data[0].max()
+                            if v < -maxasym or v > maxasym:
+                                err = "Parameter {0} out of range".format(p+1)
+                                break
+                        if p == 5:  # Lfrac
+                            if v < 0.0 or v > 1.0:
+                                err = "Parameter {0} out of range".format(p+1)
+                                break
                     if err:
                         break
             if err:
                 errmsg = "Error in peak {0}:\n{1}".format(l+1, err)
-                QtWidgets.QMessageBox.warning(self, self.title, errmsg)
+                QtWidgets.QMessageBox.warning(self.parent, self.title, errmsg)
                 return False
         return True
 
@@ -1294,7 +1535,7 @@ class pkfitDlg(QtWidgets.QDialog):
             self.first = False
         else:
             # Subsequently each peak is defined by 6 parameters:
-            # type, xc, Amp, width, a, b
+            # type, xc, Amp, width, asym, Lfrac
             n = 6
         ntot = len(items)
         self.npeaks = int(ntot/n)
@@ -1310,18 +1551,34 @@ class pkfitDlg(QtWidgets.QDialog):
             self.parmName.append('amp'+stpkno)
             self.parmVal.append(float(items[i+3]))
             self.parmName.append('wid'+stpkno)
-            # Add two extra parameters for Pseudo-Voigt and asymmetric peaks
+            # Add two extra parameters, asym and Lfrac
+            asym = 0.0
+            Lfrac = 0.0
             if peakTyp == 'P' or peakTyp == 'AP':
-                self.parmVal.append(0.5)
-                self.parmName.append('f' + stpkno)
-            else:
-                self.parmVal.append(0.0)
-                self.parmName.append('a'+stpkno)
-            self.parmVal.append(0.0)
-            if peakTyp == 'AP':
-                self.parmName.append('a'+stpkno)
-            else:
-                self.parmName.append('b'+stpkno)
+                Lfrac = 0.5
+            self.parmVal.append(asym)
+            self.parmName.append('a' + stpkno)
+            self.parmVal.append(Lfrac)
+            self.parmName.append('m' + stpkno)
+
+        # Set the parameter limits [xm, amp, fwhm, asym, Lfrac]
+        minx = self.data[0].min()
+        maxx = self.data[0].max()
+        minamp = self.data[1].min() * 1.1
+        maxamp = self.data[1].max() * 1.1
+        minw = getSpan(self.data[0]) / self.npt
+        maxw = getSpan(self.data[0]) / (self.npeaks+1)
+        minasy = -1000/maxx
+        maxasy = 1000/maxx
+        minfrac = 0
+        maxfrac = 1.0
+        minbounds = []
+        maxbounds = []
+        for i in range(self.npeaks):
+            minbounds.extend([minx, minamp, minw, minasy, minfrac])
+            maxbounds.extend([maxx, maxamp, maxw, maxasy, maxfrac])
+        self.bounds = (minbounds, maxbounds)
+
 
 
     def fitfunc(self, x, p):
@@ -1338,7 +1595,7 @@ class pkfitDlg(QtWidgets.QDialog):
             amp = p[i+1]
             w = p[i+2]
             a = p[i+3]
-            b = p[i+4]
+            m = p[i+4]
             if ptyp == 'G':
                 # peak type = Gaussian
                 S = S + self.gauss(x, xm, amp, w)
@@ -1347,7 +1604,7 @@ class pkfitDlg(QtWidgets.QDialog):
                 S = S + self.lorentz(x, xm, amp, w)
             elif ptyp == 'P':
                 # peak type = Pseudo-Voigt
-                S = S + self.psVoigt(x, xm, amp, w, a)
+                S = S + self.psVoigt(x, xm, amp, w, m)
             elif ptyp == 'AG':
                 # peak type = Asymmetric Gaussian
                 S = S + self.agauss(x, xm, amp, w, a)
@@ -1356,106 +1613,111 @@ class pkfitDlg(QtWidgets.QDialog):
                 S = S + self.alorentz(x, xm, amp, w, a)
             elif ptyp == 'AP':
                 # peak type = Asymmetric Pseudo-Voigt
-                S = S + self.aPsVoigt(x, xm, amp, w, a, b)
+                S = S + self.aPsVoigt(x, xm, amp, w, a, m)
         return S
 
 
-    def gauss(self, x, xm, amp, w):
+    def gauss(self, X, xm, amp, w):
         """ Compute the Gaussian peak profile.
 
-        :param x:  X vector.
+        :param X:  X vector.
         :param xm: Position of the peak maximum.
         :param amp: Peak amplitude
         :param w: Peak Full Width at Half Maximum.
         :return: a vector with the peak profile.
         """
-        S = np.zeros(self.npt)
-        S = S + amp * np.exp(-((x - xm) / w) ** 2)
-        return S
+        return amp * np.exp(-((X - xm) / w) ** 2)
 
-    def lorentz(self, x, xm, amp, w):
+    def lorentz(self, X, xm, amp, w):
         """ Compute the Lorentzian peak profile.
 
-        :param x:  X vector.
+        :param X:  X vector.
         :param xm: Position of the peak maximum.
         :param amp: Peak amplitude
         :param w: Peak Full Width at Half Maximum.
         :return: a vector with the peak profile.
         """
-        S = np.zeros(self.npt)
-        S = S + amp / (1 + ((x - xm) / (w / 2)) ** 2)
-        return S
+        return amp / (1 + ((X - xm) / (w / 2)) ** 2)
 
-    def psVoigt(self, x, xm, amp, w, f):
+    def psVoigt(self, X, xm, amp, w, m):
         """ Compute the pseudo-Voigt peak profile.
 
-        :param x:  X vector.
+        :param X:  X vector.
         :param xm: Position of the peak maximum.
         :param amp: Peak amplitude
         :param w: Peak Full Width at Half Maximum.
-        :param f: fraction of Lorentzian.
+        :param m: Mixing parameter.
         :return: a vector with the peak profile.
         """
-        S = np.zeros(self.npt)
-        S = S + f * self.lorentz(x, xm, amp, w) + (1-f) * self.gauss(x, xm, amp, w)
-        return S
+        return m * self.lorentz(X, xm, amp, w) + (1-m) * self.gauss(X, xm, amp, w)
 
-    def agauss(self, x, xm, amp, w, a):
-        """ Compute the asymetric Gaussian peak profile.
+    def agauss(self, X, xm, amp, w, a):
+        """ Compute the asymmetric Gaussian peak profile.
 
-        :param x:  X vector.
-        :param xm: Position of the peak maximum.
-        :param amp: Peak amplitude
-        :param w: Peak Full Width at Half Maximum.
-        :param a: Asymmetry parameter.
-        :return: a vector with the peak profile.
-        """
-        # w(x) = 2 * w / (1 + np.exp(a * (x - xm)))
-        S = np.zeros(self.npt)
-        S = S + amp * np.exp(-((x - xm) / (2 * w / (1 + np.exp(a * (x - xm))))) ** 2)
-        return S
-
-    def alorentz(self, x, xm, amp, w, a):
-        """ Compute the asymetric Lorentzian peak profile.
-
-        :param x:  X vector.
+        :param X:  X vector.
         :param xm: Position of the peak maximum.
         :param amp: Peak amplitude
         :param w: Peak Full Width at Half Maximum.
         :param a: Asymmetry parameter.
         :return: a vector with the peak profile.
         """
-        # w(x) = 2 * w / (1 + np.exp(a * (x - xm)))
-        S = np.zeros(self.npt)
-        S = S + amp / (1 + ((x - xm) / ((2 * w / (1 + np.exp(a * (x - xm)))) / 2)) ** 2)
-        return S
+        # w(x) = 2 * w / (1 + np.exp(a * (X - xm)))
+        return amp * np.exp(-((X - xm) / (2 * w / (1 + np.exp(a * (X - xm))))) ** 2)
 
-    def aPsVoigt(self, x, xm, amp, w, f, a):
-        """ Compute the asymetric pseudo-Voigt peak profile.
+    def alorentz(self, X, xm, amp, w, a):
+        """ Compute the asymmetric Lorentzian peak profile.
 
-        :param x:  X vector.
+        :param X:  X vector.
         :param xm: Position of the peak maximum.
         :param amp: Peak amplitude
         :param w: Peak Full Width at Half Maximum.
         :param a: Asymmetry parameter.
-        :param f: fraction of Lorentzian.
         :return: a vector with the peak profile.
         """
-        S = np.zeros(self.npt)
-        S = S + f * self.alorentz(x, xm, amp, w, a) + (1-f) * self.agauss(x, xm, amp, w, a)
-        return S
+        # w(x) = 2 * w / (1 + np.exp(a * (X - xm)))
+        return amp / (1 + ((X - xm) / ((2 * w / (1 + np.exp(a * (X - xm)))) / 2)) ** 2)
+
+    def aPsVoigt(self, X, xm, amp, w, a, m):
+        """ Compute the asymmetric pseudo-Voigt peak profile.
+
+        :param X:  X vector.
+        :param xm: Position of the peak maximum.
+        :param amp: Peak amplitude
+        :param w: Peak Full Width at Half Maximum.
+        :param a: Asymmetry parameter.
+        :param m: Mixing parameter.
+        :return: a vector with the peak profile.
+        """
+        return m * self.alorentz(X, xm, amp, w, a) + (1-m) * self.agauss(X, xm, amp, w, a)
 
 
-    def residuals(self, p, data, x):
+    def residuals(self, p, data, X):
         """ Compute the residuals between the peak function and the data.
 
         :param p: the peak parameters.
         :param data: the data vector (Y).
-        :param x: the X vector.
+        :param X: the X vector.
         :return: a vector with the residuals
         """
-        err = data - self.fitfunc(x,p)
+        err = data - self.fitfunc(X,p)
         return err
+
+
+    def resToStr(self, res):
+        """ Convert the numpy array 'res' in string.
+
+        :param res: a numpy array containing each peak parameters
+        :return: the string
+        """
+        for i in range(self.npeaks):
+            # Remove meaningless parameter values
+            if not self.peakTyp[i].startswith('A'):
+                res[i][3] = 0.0
+            if not(self.peakTyp[i] == 'P' or self.peakTyp[i] == 'AP'):
+                res[i][4] = 0.0
+        strres = np.array2string(res,  precision=3, separator=',',
+                                 sign='+', suppress_small=True)
+        return strres
 
 
     def compute(self):
@@ -1470,23 +1732,32 @@ class pkfitDlg(QtWidgets.QDialog):
         stguess = initguess.replace('\n', ',')
         # update self.parmVal
         self.guessToParms(stguess)
-        self.parent.app.setOverrideCursor(Qt.WaitCursor)
-        pbest1 = leastsq(self.residuals, self.parmVal, args=(self.data[1], self.data[0]))
-        self.parent.app.restoreOverrideCursor()
-        Yfit = self.fitfunc(self.data[0], pbest1[0])
-        Res = self.residuals(pbest1[0], self.data[1], self.data[0])
-        RMSE = np.sqrt(np.sum(np.square(Res)) / len(self.data[1]))
+        try:
+            self.parent.app.setOverrideCursor(Qt.WaitCursor)
+            result = least_squares(self.residuals, self.parmVal, bounds=self.bounds,
+                                   args=(self.data[1], self.data[0]))
+            self.parent.app.restoreOverrideCursor()
+        except ValueError as err:
+            errmsg = "Fitting process failure:\n{0}".format(err)
+            QtWidgets.QMessageBox.warning(self, self.title, errmsg)
+            return
+        RMSE = np.sqrt(np.sum(np.square(result.fun)) / len(self.data[1]))
         msg = "Initial guess : \n{0}\n".format(initguess)
         msg += "Number of peaks = {0:d}\n".format(self.npeaks)
-        msg += 'Fitting results:\n'
-        msg += '[xm, amp, fwhm, a, b] = \n{0}\n'.format(str(pbest1[0]))
-        msg += 'RMSE = {0:g}\n\n'.format(RMSE)
-        self.parmVal = pbest1[0]
+        logmsg = msg + 'Fitting results:\n'
+        res = np.reshape(result.x, (self.npeaks, self.maxparm))
+        strres = self.resToStr(res)
+        logmsg += '[xm, amp, fwhm, asym, m] = \n{0}\n'.format(strres)
+        rmsemsg = 'RMSE = {0:g}\n\n'.format(RMSE)
+        msg += rmsemsg
+        logmsg += rmsemsg
+        self.parmVal = result.x
 
         # Show results in log windows
         self.log.setText(msg)
-        self.saveToLogFile(msg)
-        self.data[2] = Yfit
+        self.log.moveCursor(QtGui.QTextCursor.End)
+        self.saveToLogFile(logmsg)
+        self.data[2] = self.fitfunc(self.data[0], result.x)
         self.data[3] = self.data[2] - self.data[1] - self.diffshift
 
         self.updatePlot()
@@ -1500,6 +1771,8 @@ class pkfitDlg(QtWidgets.QDialog):
         :return: nothing
         """
         fo = open("logfile.txt", 'a')
+        # prefix with current date and time from now variable
+        msg = "\n#{0}\n".format(datetime.datetime.now()) + msg
         fo.write(msg)
         fo.close()
 
@@ -1525,9 +1798,19 @@ class pkfitDlg(QtWidgets.QDialog):
         n = self.maxparm
         nv = len(self.parmVal)
         for i, parm in enumerate(self.parmVal):
-            if not i % n:
+            p = i % n
+            if p == 0:
                 # new peak parms
-                stparms += self.peakTyp[int(i / n)] + ', '
+                pktyp = self.peakTyp[int(i / n)]
+                stparms += pktyp + ', '
+            if p == 3:
+                # asym
+               if not pktyp.startswith('A'):
+                   parm = 0.0
+            if p == 4:
+                # Lfrac
+                if not(pktyp == 'P' or pktyp == 'AP'):
+                    parm = 0.0
             parm = round_to_n(parm, 4)
             stparms += str(parm)
             if i < nv - 1:
@@ -1564,28 +1847,27 @@ class pkfitDlg(QtWidgets.QDialog):
             amp = self.parmVal[i+1]
             w = self.parmVal[i+2]
             a = self.parmVal[i+3]
-            b = self.parmVal[i+4]
-            area = 0.0
+            m = self.parmVal[i+4]
             if ptyp == 'G':
                 S = self.gauss(self.data[0], xm, amp, w)
             elif ptyp == 'L':
                 S = self.lorentz(self.data[0], xm, amp, w)
             elif ptyp == 'P':
-                S = self.psVoigt(self.data[0], xm, amp, w, a)
+                S = self.psVoigt(self.data[0], xm, amp, w, m)
             elif ptyp == 'AG':
                 S = self.agauss(self.data[0], xm, amp, w, a)
             elif ptyp == 'AL':
                 S = self.alorentz(self.data[0], xm, amp, w, a)
             elif ptyp == 'AP':
-                S = self.aPsVoigt(self.data[0], xm, amp, w, a, b)
+                S = self.aPsVoigt(self.data[0], xm, amp, w, a, m)
             newset = np.vstack((newset, S))
             area = calcArea(self.data[0], S, True)
             area = round_to_n(area, 4)
             xm = round_to_n(xm, 4)
             amp = round_to_n(amp, 4)
             w = round_to_n(w, 4)
-            a = round_to_n(a, 4)
-            b = round_to_n(b, 4)
+            # a = round_to_n(a, 4)
+            # m = round_to_n(m, 4)
             vnames.append("pk{0}".format(pkno+1))
             txt += "{0}\t {1}\t {2} \t {3}\t {4}\n".format(ptyp, xm, amp, w, area)
 

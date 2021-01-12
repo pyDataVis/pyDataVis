@@ -15,14 +15,14 @@ from plotWindow import plotWin, dCursor
 from convert import convSelector
 from dataTable import tableDlg
 from toolsDialogs import ( smoothDlg, splinSmoothDlg, ALS_SmoothDlg,
-                            modelSelectDlg, fitCurveDlg, pkfitDlg,
+                            modelSelectDlg, fitCurveDlg, pkFindDlg, pkFitDlg,
                             interpolDlg, baselineDlg, noiseDlg, deNoiseDlg )
 from script import script
 from utils import isNumber, round_to_n, textToData, exportToVeusz
 
 
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 # - settingsDlg class ------------------------------------------------------------
 
@@ -186,7 +186,7 @@ class infoDlg(QtWidgets.QDialog):
             self.ini = False
             mainwh = self.parent.frameGeometry().height()
             textSize = self.fontMetrics.size(0, self.text.toPlainText())
-            w = textSize.width() + 20
+            w = textSize.width() + 30
             h = textSize.height() + 30
             if h > mainwh:
                 h = int(mainwh * 0.9)
@@ -1850,127 +1850,39 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def findPkTool(self):
-        """ Launch the interactive Peak Finding tool.
+        """ Launch the Peak Finding tool.
 
         :return: nothing.
         """
-        global lastfilename, lastmph, lastmpw    # Store parameters values
-
         pltw, cpos = self.selCurvePos()
         if cpos is None:
             return
-        title = "Peak finding tool"
+        pkFinddlg = pkFindDlg(self, pltw, cpos)
+        pkFinddlg.setModal(True)
+        ret = pkFinddlg.exec()
+        if ret:
+            peakindx = pkFinddlg.peakindx
+            mpw = pkFinddlg.mpw
+        else:
+            return
         blkno = pltw.curvelist[cpos].xvinfo.blkpos
         xpos = pltw.curvelist[cpos].xvinfo.vidx
         ypos = pltw.curvelist[cpos].yvinfo.vidx
         X = pltw.blklst[blkno][xpos]
         Y = pltw.blklst[blkno][ypos]
-        npt = len(X)
-        xspan = abs(X.max() - X.min())
-        yspan = abs(Y.max() - Y.min())
-        dlg = QtWidgets.QInputDialog()
-        # Fix the case where globals are undefined
-        try:
-            test = lastfilename
-        except NameError:
-            lastfilename = None
-
-        if pltw.filename != lastfilename:
-            # initial guess from data
-            # mph means minimum peak height
-            mph = yspan / 10
-            mph = round_to_n(mph, 1)
-            # mpw means minimum peak width
-            mpw = xspan / 20
-            mpw = round_to_n(mpw, 1)
-        else:
-            mph = lastmph
-            mpw = lastmpw
-        # Evaluate the threshold from the standard deviation
-        # calculated on the first 10% of the curve. It is
-        # expected that there is no major peak in this range.
-        thres = Y[:int(npt/10)].std()
-        if yspan/thres > 10:
-            thres = 0.0
-        guess = "{0:g}, {1:g}".format(mph, mpw)
-        guess, ok = dlg.getText(self, title,
-                                "Detection parameters: minHeight, minWidth",
-                                text=guess)
-        if not ok:
-            return
-
-        # Check user input
-        prm = []
-        err = ""
-        items = str(guess).split(',')
-        if len(items) != 2:
-            err = "Two parameters must be given"
-        else:
-            for i in range(0, len(items)):
-                val = items[i].strip()
-                if not isNumber(val):
-                    err = "Parameter {0} is not numeric".format(i+1)
-                    break
-                if float(val) < 0.0:
-                    err = "Parameter {0} is negative".format(i+1)
-                    break
-                val = float(val)
-                if i == 0 and val > yspan:
-                    err = "minHeight is too large"
-                    break
-                if i == 1 and val > xspan:
-                    err = "minWidth is too large"
-                    break
-                prm.append(val)
-        if err:
-            errmsg = "Incorrect input in:\n{0}\n{1}".format(guess, err)
-            QtWidgets.QMessageBox.warning(self, title, errmsg)
-            return
-
-        # Store parameters values in global variables for next call
-        lastfilename = pltw.filename
-        lastmph = prm[0]
-        lastmpw = prm[1]
-
-        # detect_peaks function requires mpd (= minimum peak distance)
-        # mpw should be converted in mpd
-        prm[1] = prm[1] * npt / xspan
-        npk = ntry = 0
-        while npk == 0 and ntry < 5:
-            peakindx, _ = signal.find_peaks(Y, height=prm[0], distance=prm[1], threshold=thres)
-            npk = len(peakindx)
-            if npk == 0:
-                if thres == 0:
-                    break
-                if ntry == 3:
-                    thres = 0.0
-                else:
-                    thres /= 2
-                ntry += 1
-        if not npk:
-            QtWidgets.QMessageBox.information(self, title, "No peak found")
-            return
-        msg = "{0:d} peaks have been detected, " \
-                "do you want to continue ?".format(npk)
-        ans = QtWidgets.QMessageBox.information(self, title, msg,
-                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-        if ans == QtWidgets.QMessageBox.No:
-            return
-
-        # convert results in guess for pkfitDlg (typ, pos, amp, FWHM)
+        # Convert results in guess for pkfitDlg (typ, pos, amp, FWHM)
         guess = ""
+        npk = len(peakindx)
         for idx in peakindx:
-            pos = round_to_n(X[idx], 3)
-            amp = round_to_n(Y[idx], 3)
-            fwhm = mpw
-            stpk = "G,{0},{1},{2}".format(pos, amp, fwhm)
+            pos = X[idx]
+            amp = round_to_n(Y[idx] * 0.8, 3)
+            stpk = "G,{0},{1},{2}".format(pos, amp, mpw)
             if idx != peakindx[npk - 1]:
                  # add the separator for the next peak
                 stpk += ','
             guess += stpk
         self.copyCurrentWinState(pltw)
-        cpos = 0
-        pkfitdlg = pkfitDlg(self, pltw, cpos, guess)
+        pkfitdlg = pkFitDlg(self, pltw, cpos, guess)
         pkfitdlg.setModal(True)
         pkfitdlg.show()
 
@@ -1984,16 +1896,13 @@ class MainWindow(QtWidgets.QMainWindow):
         pltw, cpos = self.selCurvePos()
         if cpos is None:
             return
-        title = "Peak fitting"
-        dlg = QtWidgets.QInputDialog()
-        msg = "One line per peak: typ, pos, amp, FWHM"
-        userinput, ok = dlg.getMultiLineText(self, title, msg)
-        if not ok:
-            return
         self.copyCurrentWinState(pltw)
-        pkfitdlg = pkfitDlg(self, cpos, userinput)
-        pkfitdlg.setModal(True)
-        pkfitdlg.show()
+        pkfitdlg = pkFitDlg(self, pltw, cpos)
+        if pkfitdlg.stguess is None:
+            del pkfitdlg
+        else:
+            pkfitdlg.setModal(True)
+            pkfitdlg.show()
 
 
 

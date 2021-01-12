@@ -69,7 +69,5 @@ Any help is welcome.
 
 
 ## Roadmap
-This version is the first release. 
-It was developed on Linux, briefly tested on Windows 10 but not yet tested on Mac OS X.
-
+This sofware was developed on Linux (Ubuntu 20.04), tested on Windows 10 but not yet tested on macOS.
 

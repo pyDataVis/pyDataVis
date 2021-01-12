@@ -1694,7 +1694,7 @@ class plotWin(QtWidgets.QDialog):
                     break
                 nvect, npt = np.shape(self.blklst[0])
                 for i in range(nvect):
-                    if np.array_equal(vectX, nparray[i]):
+                    if np.allclose(vectX, nparray[i]):
                         blkno = n
                         xidx = i
                         break
