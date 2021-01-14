@@ -226,6 +226,7 @@ class plotWin(QtWidgets.QDialog):
         if filename is None:
             while True:
                 filename = str("Unnamed-{0}.txt".format(plotWin.newcpt))
+                filename = "{0}/{1}".format(self.parent.progpath, filename)
                 if self.parent.isAlreadyOpen(filename):
                     plotWin.newcpt += 1
                 else:

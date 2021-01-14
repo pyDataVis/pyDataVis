@@ -154,6 +154,8 @@ class script(object):
             narg = -1
         else:
             # If this is not an expression check the command name
+            # Remove space after comma
+            cmd = cmd.replace(", ", ",")
             typ, narg = self.lookForCmd(cmd)
             if typ is None:
                 return (1, "Unknown command")
@@ -211,7 +213,8 @@ class script(object):
         :return: a tuple (errno, errmsg).
         """
         errmsg = ""
-        # The syntax is : new V start, stop, step
+        # The syntax is : new V start,stop,step
+        # Remove the cmommand name
         cmd = cmd[5:]
 
         items = cmd.split(' ')

@@ -61,6 +61,16 @@ To install, copy the .zip file to the location where you want store the program.
 
 To remove the application you only have to delete the pyDataVis folder.
 
+### Installation from the Python Package Index
+Open a Terminal and run:
+```
+pip install pyDataVis
+```
+Then to launch the application:
+```
+pyDataVis
+```
+
 ## Installation from source archives
 pyDataVis requires Python 3, PyQt5, Numpy, Pandas, Scipy and Matplotlib. The easiest way to install everything is to use Open Source [Anaconda](https://www.anaconda.com/products/individual) that will "just work" out of the box for Windows, macOS and common Linux platforms.
 
@@ -365,9 +375,9 @@ When you click on the *OK* button, the original data is replaced by the blue cur
 
 ## Peak finding and Peak fitting
 
-These two options of *Tools* menu are working together because after finding the peaks, the *Peak finding* module automatically calls the *Peak fitting* module.
+These two options of *Tools* menu are working together because after finding the peaks, the *Peak finding* module automatically calls the *Peak fitting* module. It should be noticed that this module requires that the baseline is at zero. You can use the [Baseline](#baseline) correction tool if this not the case.
 
-Selecting the *Peak finding* option pops up the Peak finding dialog as shown on figure 10. When the signal is noisy there are a very large number of peaks. To select only the relevant ones two parameters are used: the height of the smallest peak (minHeight) and the width of the narrowest peak (minWidth). 
+Selecting the *Peak finding* option pops up the Peak finding dialog as shown on figure 10. To select only the relevant peaks, two parameters are used: the height of the smallest peak (minHeight) and the width of the narrowest peak (minWidth). 
 
 ![Figure 10 - Peak finding tool](img/peakFind1.png){width=500px}
 

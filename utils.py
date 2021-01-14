@@ -1,9 +1,11 @@
 # General purpose functions
 #
+import os
 import csv
 import math
-import numpy as np
 from datetime import date
+import numpy as np
+import requests
 
 
 def isNumber(s):
@@ -89,12 +91,53 @@ def findFile(name, path):
     return None
 
 
-def internet_on():
+def checkWeb():
+    """ Check connection to the Internet
+
+    :return: True is connected, False otherwise.
+    """
     try:
-        urllib2.urlopen('http://216.58.192.142', timeout=1)
-        return True
-    except urllib2.URLError as err:
+        # IP of Google LLC (google.com)
+        r = requests.get('http://216.58.192.142')
+    except requests.ConnectionError as err:
         return False
+    if r.status_code == 200:
+        return True
+    return False
+
+
+def checkURL(url):
+    """ Check if 'url' is valid and exists on the internet.
+
+    :param url: URL to test
+    :return: True if URL is valid and exists on the internet.
+    """
+    try:
+        r = requests.get(url)
+        # URL is valid and exists on the internet
+        return True
+    except requests.ConnectionError as err:
+        # URL does not exist on Internet
+        pass
+    return False
+
+
+def cpyFromURL(url, filename):
+    """ Create a copy of the file in 'url'
+
+    :param url: URL of the file to copy
+    :param filename: name of the file to create
+    :return: True if success.
+
+    """
+    if not checkURL(url):
+        return False
+    r = requests.get(url, allow_redirects=True)
+    try:
+        open(filename, 'wb').write(r.content)
+    except IOError as err:
+        return False
+    return True
 
 
 

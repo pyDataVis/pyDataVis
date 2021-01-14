@@ -1,11 +1,10 @@
 # pyDataVis MainWindow
 
-import sys, os, csv, platform, shutil
+import sys, os, csv, platform, shutil, inspect
 from urllib.request import urlopen
 import copy
 import numpy as np
 import pandas as pd
-from scipy import signal
 
 from PyQt5.QtCore import ( QFile, QFileInfo, QSettings, QSignalMapper,
                            QTimer, QVariant, Qt )
@@ -18,11 +17,11 @@ from toolsDialogs import ( smoothDlg, splinSmoothDlg, ALS_SmoothDlg,
                             modelSelectDlg, fitCurveDlg, pkFindDlg, pkFitDlg,
                             interpolDlg, baselineDlg, noiseDlg, deNoiseDlg )
 from script import script
-from utils import isNumber, round_to_n, textToData, exportToVeusz
+from utils import checkURL, cpyFromURL, round_to_n, textToData, exportToVeusz
 
 
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 # - settingsDlg class ------------------------------------------------------------
 
@@ -162,9 +161,17 @@ class infoDlg(QtWidgets.QDialog):
             self.text.setReadOnly(True)
             iconLabel = QtWidgets.QLabel(self)
             logopath = '{0}/icons/logo.jpg'.format(parent.progpath)
-            pixmap = QtGui.QPixmap(logopath)
-            iconLabel.setPixmap(pixmap)
-            iconLabel.setAlignment(Qt.AlignCenter)
+            if not os.path.exists(logopath):
+                url = 'https://github.com/pyDataVis/pyDataVis.github.io/raw/main/img/logo.jpg'
+                if checkURL(url):
+                    path = os.path.dirname(logopath)
+                    if not os.path.exists(path):
+                        os.mkdir(path)
+                    cpyFromURL(url, logopath)
+            if os.path.exists(logopath):
+                pixmap = QtGui.QPixmap(logopath)
+                iconLabel.setPixmap(pixmap)
+                iconLabel.setAlignment(Qt.AlignCenter)
             okBtn = QtWidgets.QPushButton("OK")
             licenseBtn = QtWidgets.QPushButton("Show license")
             okBtn.clicked.connect(self.accept)
@@ -199,16 +206,26 @@ class infoDlg(QtWidgets.QDialog):
         self.text.clear()
 
     def validate(self):
-        file = open("logfile.txt", 'w')
+        path = "{0}/logfile.txt".format(self.parent.progpath)
+        file = open(path, 'w')
         file.write(self.text.toPlainText())
         self.hide()
 
     def showLicense(self):
-        licfil = "{0}/LICENSE".format(self.parent.progpath)
-        if os.path.isfile(licfil):
-            fo = open(licfil, 'r')
+        fo = None
+        licpath = "{0}/LICENSE".format(self.parent.progpath)
+        if os.path.isfile(licpath):
+            fo = open(licpath, 'r')
             txt = fo.read()
             fo.close()
+        else:
+            url = "https://raw.githubusercontent.com/pyDataVis/pyDataVis.github.io/main/LICENSE"
+            if checkURL(url):
+                fo = urlopen(url)
+                txt = fo.read().decode('utf-8')
+                fo.close()
+                cpyFromURL(url, licpath)
+        if fo is not None:
             msg = QtWidgets.QMessageBox()
             msg.setFont(self.parent.txteditfont)
             msg.setText(txt)
@@ -229,7 +246,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, parent = None):
         super(MainWindow, self).__init__(parent)
 
-        self.progpath, f = os.path.split(os.path.abspath(sys.argv[0]))
+        path = inspect.getfile(inspect.currentframe())
+        self.progpath, f = os.path.split(path)
+
         self.mdi = QtWidgets.QMdiArea()
         # Enable drag & drop onto the GUI
         self.setAcceptDrops(True)
@@ -293,7 +312,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.updateWindowMenu()
         self.setWindowTitle(self.app.applicationName())
         iconpath = '{0}/icons/icon.ico'.format(self.progpath)
-        self.setWindowIcon(QtGui.QIcon(iconpath))
+        if not os.path.isfile(iconpath):
+            url = "https://github.com/pyDataVis/pyDataVis.github.io/raw/main/img/icon.ico"
+            if checkURL(url):
+                # Create icon directory and copy icon.ico in it
+                path = os.path.dirname(iconpath)
+                if not os.path.exists(path):
+                    os.mkdir(path)
+                cpyFromURL(url, iconpath)
+        if os.path.isfile(iconpath):
+            self.setWindowIcon(QtGui.QIcon(iconpath))
         QTimer.singleShot(0, self.loadFiles)
         self.updateUI()
         self.mdi.subWindowActivated.connect(self.updateUI)
@@ -802,10 +830,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def isAlreadyOpen(self, filename):
-        """ Check if the file 'filename' is not already open
+        """ Check if the file which name is 'filename' is not already open.
 
         :param filename: path of the file
-        :return: the subwindow if it is already open, None otherwise.
+        :return: the subwindow if the file is already open, None otherwise.
         """
         for subw in self.mdi.subWindowList():
             pltw = subw.widget()
@@ -1218,7 +1246,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-
     def fileUpdateFromText(self):
         """ Update plots & vectors with the content of the Text editor window.
 
@@ -1253,8 +1280,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         :return: nothing.
         """
-        if os.path.isfile("logfile.txt"):
-            fo = open("logfile.txt", 'r')
+        path = "{0}/logfile.txt".format(self.progpath)
+        if os.path.isfile(path):
+            fo = open(path, 'r')
             txt = fo.read()
             fo.close()
         else:
@@ -1612,7 +1640,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pltw = subw.widget()
         title = "Open a script file"
         filter = "Text files (*.txt);;All files (*.*)"
-        dir = "./scripts"
+        dir = "{0}/scripts".format(self.progpath)
         filename = QtWidgets.QFileDialog.getOpenFileName(self, title, dir, filter)[0]
         if filename:
             with open(filename) as file:
@@ -1630,8 +1658,11 @@ class MainWindow(QtWidgets.QMainWindow):
         pltw = subw.widget()
         title = "Save a script file"
         filter = "Text files (*.txt);;All files (*.*)"
-        dir = "./scripts"
-
+        dir = "{0}/scripts".format(self.progpath)
+        if not os.path.exists(dir):
+            # the scripts folder does not exist, create it
+            os.makedirs(dir)
+        dir = "{0}/scripts".format(self.progpath)
         filename = QtWidgets.QFileDialog.getSaveFileName(self, title, dir, filter)[0]
         if filename:
             with open(filename, "wt") as file:
@@ -1719,32 +1750,37 @@ class MainWindow(QtWidgets.QMainWindow):
             msg = "Nothing to execute !"
             QtWidgets.QMessageBox.warning(self, "Execute a command", msg)
             return
-        if os.path.isfile("input.txt"):
+        path = "{0}/input.txt".format(self.progpath)
+        if os.path.isfile(path):
             # delete input.txt file
-            os.remove("input.txt")
+            os.remove(path)
         if pltw.curvelist != []:
             # Save the active curve in input.txt
-            pltw.saveCurveInFile(pltw.activcurv, "input.txt")
+            pltw.saveCurveInFile(pltw.activcurv, path)
         # Add imports
         pyscript = "import numpy as np\n"
-        if os.path.isfile("input.txt"):
+        if os.path.isfile(path):
             # Load active curve from input.txt
-            pyscript += "A = np.loadtxt({0}, unpack=True)\n".format("\"input.txt\"")
+            path = "\"{0}\"".format(path)
+            pyscript += "A = np.loadtxt({0}, unpack=True)\n".format(path)
             pyscript += "X=A[0]\nY=A[1]\n"
         # Add the script from Script window
         pyscript += cmd
         # Save the script in 'scripts/scriptfile.py'
-        if not os.path.exists("./scripts"):
+        path = "{0}/scripts".format(self.progpath)
+        if not os.path.exists(path):
             # the scripts folder does not exist, create it
-            os.makedirs("./scripts")
-        with open("./scripts/scriptfile.py", "wt") as file:
+            os.makedirs(path)
+        scriptpath = "{0}/scriptfile.py".format(path)
+        with open(scriptpath, "wt") as file:
              file.write(pyscript)
         # execute the script, the output is stored in "output.txt" file.
         import subprocess
-        with open("output.txt", "w+") as output:
-            subprocess.run(["python", "./scripts/scriptfile.py"], stdout=output)
+        path = "{0}/ouput.txt".format(self.progpath)
+        with open(path, "w+") as output:
+            subprocess.run(["python", scriptpath], stdout=output)
         # Show the process output in info window
-        with open("output.txt") as file:
+        with open(path) as file:
             pltw.info.setPlainText(file.read())
 
 
@@ -2028,6 +2064,11 @@ class MainWindow(QtWidgets.QMainWindow):
         if platform.system() == "Windows":
             return "Function not yet implemented"
         if platform.system() == "Linux":
+            tmppath = "{0}/tmp".format(self.progpath)
+            if not os.path.exists(tmppath):
+                # the tmp folder does not exist, create it
+                os.makedirs(tmppath)
+            os.chdir(tmppath)
             cmd = "git clone {0}".format(url)
             os.system(cmd)
             dirlst = os.listdir(copydir)
@@ -2040,8 +2081,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     shutil.copyfile(src, dest)
                 except IOError as e:
                     return "Unable to copy file {0}".format(e)
-                # Delete the newdir folder
-                shutil.rmtree(copydir)
+                # Delete the tmp folder
+                shutil.rmtree(tmppath)
         self.statusbar.showMessage("")
         self.app.restoreOverrideCursor()
         return ""
@@ -2075,11 +2116,11 @@ class MainWindow(QtWidgets.QMainWindow):
         msg = "There is a new version of pyDataVis, do you want to update ?"
         if QtWidgets.QMessageBox.information(self, title, msg,
                      QtWidgets.QMessageBox.Yes |
-                     QtWidgets.QMessageBox.No) != QtWidgets.QMessageBox.No:
+                     QtWidgets.QMessageBox.No) != QtWidgets.QMessageBox.Yes:
             return
 
         url = "https://github.com/pyDataVis/pyDataVis.git"
-        clonedir = "{0}/pyDataVis".format(self.progpath)
+        clonedir = "{0}/tmp/pyDataVis".format(self.progpath)
         errmsg = self.getDataFromUrl(clonedir, url)
         if errmsg:
             title = "Cannot update from GitHub"

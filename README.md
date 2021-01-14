@@ -21,6 +21,16 @@ To install, copy the .zip file to the location where you want store the program.
 
 To remove the application you only have to delete the pyDataVis folder.
 
+### Installation from the Python Package Index
+Open a Terminal and run:
+```
+pip install pyDataVis
+```
+Then to launch the application:
+```
+pyDataVis
+```
+
 ### Installation from source archives
 pyDataVis requires Python 3, PyQt5, Numpy, Pandas, Scipy and Matplotlib. The easiest way to install everything is to use Open Source [Anaconda](https://www.anaconda.com/products/individual) that will "just work" out of the box for Windows, macOS and common Linux platforms.
 
