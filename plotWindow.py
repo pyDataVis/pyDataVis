@@ -137,11 +137,13 @@ class dCursor:
         """ Move the cursor position to 'index'
 
         :param index: int giving the new data index
-        :return: nothing
+        :return: True is success, False otherwise.
         """
         if index >= 0 and index < len(self.parent.blklst[self.blkno][self.xpos]):
             self.ic = index
             self.updateLinePos()
+            return True
+        return  False
 
 
     def getIndex(self):
@@ -166,10 +168,10 @@ class dCursor:
 
         :param event: mouse event.
         :param indx: data index of the place to move.
-        :return: nothing.
+        :return: True is success, False otherwise.
         """
         if indx is None and event is None:
-            return
+            return False
         if indx is None:
             x, y = event.xdata, event.ydata
             if not self.parent.xascending:
@@ -181,7 +183,7 @@ class dCursor:
             indx = 0
         elif indx >= len(self.parent.blklst[self.blkno][self.xpos]):
             indx = len(self.parent.blklst[self.blkno][self.xpos])
-        self.setIndex(indx)
+        return self.setIndex(indx)
 
 
 # - Line class ------------------------------------------------------------
@@ -323,6 +325,8 @@ class plotWin(QtWidgets.QDialog):
     def on_key_press(self, event):
         # implement the default mpl key press events described at
         # http://matplotlib.org/users/navigation_toolbar.html#navigation-keyboard-shortcuts
+        self.parent.keyb = event.key
+        #print(event.key)
         key_press_handler(event, self.canvas, self.mpl_toolbar)
 
 
@@ -665,7 +669,7 @@ class plotWin(QtWidgets.QDialog):
 
         try:
             sheets = pd.read_excel(filename, sheet_name=None, engine=engine)
-        except (IOError, OSError, ImportError) as err:
+        except (IOError, OSError, ImportError, ValueError) as err:
             return err
 
         self.blklst = []
@@ -895,7 +899,6 @@ class plotWin(QtWidgets.QDialog):
         self.vectInfolst = vectInfolst
 
 
-
     def setDataInfo(self, blklst, vectInfolst):
         """ Create a multiline string containing basic information about the data.
 
@@ -916,9 +919,8 @@ class plotWin(QtWidgets.QDialog):
         return info
 
 
-
     def getVinfo(self, vnam, vectInfolst=None):
-        """ Find the first vectInfo object in 'vectInfolst' whose name is 'vname'
+        """ Find the vectInfo object in 'vectInfolst' whose name is 'vname'
 
             If 'vectInfolst' is None use 'self.vectInfolst'.
 
@@ -1466,6 +1468,12 @@ class plotWin(QtWidgets.QDialog):
         # delete the vectorInfolst in self.vectInfolst
         del self.vectInfolst[blkno]
 
+        # update blkno position in vectors belonging to the following blocks
+        for vinfolist in self.vectInfolst:
+            for vinfo in vinfolist:
+                if vinfo.blkpos > blkno:
+                    vinfo.blkpos -= 1
+
         # delete the data block
         del self.blklst[blkno]
 
@@ -1474,43 +1482,45 @@ class plotWin(QtWidgets.QDialog):
         return True
 
 
-    def delVector(self, blkno, vpos):
-        """ Delete the vector having the index 'vpos' in the block 'blkno'
+    def delVector(self, vnam):
+        """ Delete the vector which name is 'vnam'.
 
-        :param blkno: the data block number containing the vector
-        :param vpos: the index of the vector in the data block.
+        :param vnam: the name of the vector to delete.
         :return:  True if done, False otherwise.
         """
         # check the parameters
-        if blkno < 0 or blkno >= len(self.blklst):
+        vectinfo = self.getVinfo(vnam)
+        if vectinfo is None:
             return False
+        blkno = vectinfo.blkpos
+        vpos = vectinfo.vidx
         nvect, nrow = np.shape(self.blklst[blkno])
-        if vpos < 0 or vpos >= nvect:
-            return False
-
-        # find the vector in self.vectInfolst[blkno]
-        infolst = self.vectInfolst[blkno]
-        for vinfo in infolst:
-            if vinfo.vidx == vpos and vinfo.blkpos == blkno:
-                vectinfo = vinfo
 
         # delete the vector
         if nvect == 1:
             # It the vector is the only one in the data block
             # delete the data block
             del self.blklst[blkno]
+            # update blkno position in vectors belonging to the following blocks
+            for vinfolist in self.vectInfolst:
+                for vinfo in vinfolist:
+                    if vinfo.blkpos > blkno:
+                        vinfo.blkpos -= 1
         else:
             newset = np.vstack((self.blklst[blkno][:vpos], self.blklst[blkno][vpos+1:]))
             self.blklst[blkno] = newset
 
         # update self.vectInfolst
-        for vinfo in infolst:
+        for vinfo in self.vectInfolst[blkno]:
             if vinfo.vidx == vpos:
-                infolst.remove(vinfo)
+                self.vectInfolst[blkno].remove(vinfo)
                 break
-        for vinfo in infolst:
-            if vinfo.vidx > vpos:
-                vinfo.vidx -= 1
+        if len(self.vectInfolst[blkno]) == 0:
+            self.vectInfolst.remove(self.vectInfolst[blkno])
+        else:
+            for vinfo in self.vectInfolst[blkno]:
+                if vinfo.vidx > vpos:
+                    vinfo.vidx -= 1
         # update self.curvelist
         for curve in self.curvelist:
             if curve.xvinfo == vectinfo:
@@ -1520,6 +1530,7 @@ class plotWin(QtWidgets.QDialog):
             if curve.yvinfo == vectinfo:
                 self.curvelist.remove(curve)
                 break
+
         self.dirty = True
         self.updatePlot()
         return True

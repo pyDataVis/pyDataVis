@@ -7,4 +7,4 @@ Open the file "despike.plt"
 
 Enter "despike I 3" in the script window and execute (Ctrl+E)
 
-The spikes have been removed.
+The spikes have been removed (like in despike.png).

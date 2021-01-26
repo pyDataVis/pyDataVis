@@ -138,7 +138,10 @@
 <li><a href="#installation-from-the-python-package-index">Installation from the Python Package Index</a></li>
 <li><a href="#installation-from-source-archives">Installation from source archives</a></li>
 </ul></li>
-<li><a href="#support">Support</a></li>
+<li><a href="#support">Support</a>
+<ul>
+<li><a href="#testing">Testing</a></li>
+</ul></li>
 <li><a href="#loading-data-in-pydatavis">Loading data in pyDataVis</a>
 <ul>
 <li><a href="#reading-spectra-in-jcamp-dx-format">Reading spectra in JCAMP-DX format</a></li>
@@ -208,7 +211,7 @@
 <li><a href="#irtrans">IRtrans</a></li>
 <li><a href="#fft">fft</a></li>
 <li><a href="#despike">despike</a></li>
-<li><a href="#delmultx">delmultx</a></li>
+<li><a href="#deldupx">deldupx</a></li>
 <li><a href="#ndec">ndec</a></li>
 </ul></li>
 <li><a href="#operations-changing-only-a-part-of-vector-elements">Operations changing only a part of vector elements</a>
@@ -281,6 +284,8 @@ sudo dpkg -i pyDataVis.deb</code></pre>
 <p>To display the manual, open the page https://pydatavis.github.io/ in your browser or use the <em>Help</em> option in the <em>Help</em> menu.</p>
 <p>The folder <em>examples</em>, in the source archives, contains files for testing almost any function. For those who have not installed from source archives, they can be found on the <a href="https://pyDataVis.github.io">website</a> of pyDataVis, in <a href="https://pydatavis.github.io/Downloads.html">Downloads page</a>.</p>
 <p>If you need more information, feel free to contact me at: palphonse@wanadoo.fr</p>
+<h2 id="testing">Testing</h2>
+<p>To see almost every script commands in action you can run the self tests with the ‘Run tests’ option in Help menu.</p>
 <h1 id="loading-data-in-pydatavis">Loading data in pyDataVis</h1>
 <p>The text data is always loaded first in the <em>Text editor window</em> before been processed. Then pyDataVis tries to decode the data. If successfull it will plot the curves. There are two ways to supply data in the <em>Text editor window</em>:</p>
 <ul>
@@ -294,7 +299,7 @@ sudo dpkg -i pyDataVis.deb</code></pre>
 <h2 id="importing-data">Importing data</h2>
 <p>By using the option <em>Import from spreadsheet</em> in the <em>File</em> menu, it is possible to import data from spreadsheet files like MS Excel or LibreOffice Calc (in this case the odfpy module must first be installed, for example with <code>pip install odfpy</code>). If the file contains several sheets, the same number of data blocks are created. Each sheet must contains only one data table otherwise the importation will give unpredictable results.</p>
 <h2 id="updating">Updating</h2>
-<p>When the vectors are modified, for example by <a href="#script-commands">Script commands</a>, the Text editor window is not updated to reflect these changes. In case of mistake this gives the possibility to restore previous state by using the <em>Update from text</em> option in the <em>File</em> menu. To update the Text editor window with the current vector values the <em>Update from data</em> option in the <em>File</em> menu should be used. Beware that these two options update also the file so that there is no way to get the original data back.</p>
+<p>When the vectors are modified, for example by <a href="#script-commands">Script commands</a>, the Text editor window is not updated to reflect these changes. In case of mistake this gives the possibility to restore the previous state by using the <em>Update from text</em> option in the <em>File</em> menu. To update the Text editor window with the current vector values the <em>Update from data</em> option in the <em>File</em> menu should be used. Beware that these two options update also the file so that there is no way to get the original data back.</p>
 <h2 id="data-table">Data table</h2>
 <p>To see the real-time values of the vector elements, use the <em>Data Table</em> option in the <em>Tools</em> menu. This table can also be displayed with the key sequence Ctrl+T. The position of the selected cell of this table is linked to the <a href="#cursor-and-marks">data cursor</a> position. The value of the vector elements can also be modified with this table.</p>
 <h1 id="saving-and-exporting-data">Saving and exporting data</h1>
@@ -760,9 +765,9 @@ plot X,S</code></pre>
 <figure>
 <img src="img/despike.png" width="500" alt="Figure 30 - Despike example" /><figcaption aria-hidden="true">Figure 30 - Despike example</figcaption>
 </figure>
-<h3 id="delmultx">delmultx</h3>
+<h3 id="deldupx">deldupx</h3>
 <p>The command:</p>
-<pre><code>delmultx X</code></pre>
+<pre><code>deldupx X</code></pre>
 <p>sorts X in ascending order and then removes duplicates. It processes only the data block containing the vector X. Moreover X must be the first vector of the data block. This command must be executed before using the <a href="#interpolation">Interpolation tool</a>.</p>
 <h3 id="ndec">ndec</h3>
 <p>This command changes the precision (number of decimal places) of all the vector elements. For example the command:</p>
@@ -828,23 +833,22 @@ plt.show()</code></pre>
 <li><strong>area</strong> Y : Compute the area under the curve Y. The limits must be indicated by the marker positions.</li>
 <li><strong>arrow</strong> x, y, length, angle, b : Draw at x,y a blue arrow of length 40 making an angle of ‘angle’ with horizontal.</li>
 <li><strong>BET</strong> : Compute optimum BET surface area and BET constant.</li>
-<li><strong>clipup</strong> Y maxval : Replace in the vector Y all elements larger than maxval by maxval.</li>
 <li><strong>clipdn</strong> Y minval : Replace in the vector Y all elements lower than minval by minval.</li>
+<li><strong>clipup</strong> Y maxval : Replace in the vector Y all elements larger than maxval by maxval.</li>
 <li><strong>clipx</strong> &lt; minval : Delete all elements located below minval in the vector used as abscissa.</li>
 <li><strong>clipx</strong> &gt; maxval : Delete all elements located above maxval in the vector used as abscissa.</li>
-<li><strong>delb b1</strong> : Delete the data block b1.<br />
-</li>
+<li><strong>delb b1</strong> : Delete the data block b1.</li>
+<li><strong>deldupx</strong> X: Sort X in ascending order and then remove duplicates.</li>
 <li><strong>delv V</strong> : Delete the vector V.</li>
-<li><strong>delmultx</strong> X: Sort X in ascending order and then remove duplicates.</li>
 <li><strong>despike</strong> V winsiz : Removes spikes, which point width are lower than winsiz, in V.</li>
-<li><strong>labX</strong> Time (s) : Display ‘Time (s)’ as label of X axis.</li>
 <li><strong>fft</strong> V : Compute the Discrete Fast Fourier Transform of V.</li>
 <li><strong>IRabs</strong> : Convert an IR spectrum in absorbance.</li>
 <li><strong>IRtrans</strong> : Convert an IR spectrum in transmittance.</li>
 <li><strong>labY1</strong> Rate (rpm) : Display ‘Rate (rpm)’ as label of Y1 axis.</li>
 <li><strong>labY2</strong> Intensity : Display ‘Intensity’ as label of Y2 axis.</li>
-<li><strong>lineq</strong> V1 : Compute, for curve V1, the equation of the line linking marker positions.</li>
+<li><strong>labX</strong> Time (s) : Display ‘Time (s)’ as label of X axis.</li>
 <li><strong>linefit</strong> V1 -1 : Compute the equation of the line fitting the curve V1 at the cursor position. The last parameter, which must be either -1 or +1, indicates the direction of the fitting line.</li>
+<li><strong>lineq</strong> V1 : Compute, for curve V1, the equation of the line linking marker positions.</li>
 <li><strong>merge b1 b2</strong> : Merge the data blocks b1 and b2 together</li>
 <li><strong>name</strong> V1 as V2 : Give to the vector V1 the name V2.</li>
 <li><strong>ndec</strong> V n : Set the number of decimal places to n for all V elements.</li>
@@ -856,11 +860,11 @@ plt.show()</code></pre>
 <li><strong>revert</strong> V : Revert the order of elements in V.</li>
 <li><strong>shift</strong> Y v: Add the value v to the portion of Y curve delimited by the markers.</li>
 <li><strong>shrink</strong> V n : Reduce in the number of elements in V by a factor n.</li>
-<li><strong>stats</strong> V : Return statistics on V.</li>
 <li><strong>sort</strong> V : Sort the elements of the vector V in ascending order.</li>
+<li><strong>stats</strong> V : Return statistics on V.</li>
 <li><strong>swapv V1 V2</strong> : Exchange all the elements between vectors V1 and V2. Does not change the names.</li>
-<li><strong>text</strong> x, y, title, r, 14 : Write ‘title’ at x,y using a red font with size 14.</li>
 <li><strong>symbol</strong> Y : Draw symbols on the location of data points for the vector Y.</li>
+<li><strong>text</strong> x, y, title, r, 14 : Write ‘title’ at x,y using a red font with size 14.</li>
 </ul>
 <h1 id="alphabetical-list-of-keyboard-shortcuts">Alphabetical list of keyboard shortcuts</h1>
 <ul>

@@ -61,7 +61,7 @@ To install, copy the .zip file to the location where you want store the program.
 
 To remove the application you only have to delete the pyDataVis folder.
 
-### Installation from the Python Package Index
+## Installation from the Python Package Index
 Open a Terminal and run:
 ```
 pip install pyDataVis
@@ -104,6 +104,11 @@ The folder *examples*, in the source archives, contains files for testing almost
 If you need more information, feel free to contact me at: palphonse@wanadoo.fr
 
 
+## Testing
+To see almost every script commands in action you can run the self tests with the 'Run tests' option in Help menu.
+
+
+
 # Loading data in pyDataVis
 
 The text data is always loaded first in the *Text editor window* before been processed. Then pyDataVis tries to decode the data. If successfull it will plot the curves.
@@ -129,7 +134,7 @@ By using the option *Import from spreadsheet* in the *File* menu, it is possible
 
 ## Updating 
 
-When the vectors are modified, for example by [Script commands](#script-commands), the Text editor window is not updated to reflect these changes. In case of mistake this gives the possibility to restore previous state by using the *Update from text* option in the *File* menu. To update the Text editor window with the current vector values the *Update from data* option in the *File* menu should be used. Beware that these two options update also the file so that there is no way to get the original data back.
+When the vectors are modified, for example by [Script commands](#script-commands), the Text editor window is not updated to reflect these changes. In case of mistake this gives the possibility to restore the previous state by using the *Update from text* option in the *File* menu. To update the Text editor window with the current vector values the *Update from data* option in the *File* menu should be used. Beware that these two options update also the file so that there is no way to get the original data back.
 
 ## Data table
 
@@ -501,7 +506,6 @@ labX X
 labY1 Y
 text 0.5,5,Y = X + sin(2X),black,20
 ```
-In some cases the computation results are saved in the log file preceded by a header indicating the date and time of the calculation. This file can be accessed and modified by selecting the *View log* option in the file menu.
 
 ![Figure 20 - Executing a script](img/script.png){width=550px}
 
@@ -836,10 +840,10 @@ despike Ides 3
 ![Figure 30 - Despike example](img/despike.png){width=500px}
 
 
-### delmultx
+### deldupx
 The command: 
 ```
-delmultx X
+deldupx X
 ```
 sorts X in ascending order and then removes duplicates. It processes only the data block containing the vector X. Moreover X must be the first vector of the data block.
 This command must be executed before using the [Interpolation tool](#interpolation).
@@ -949,22 +953,22 @@ The figure 33 shows the result of the script execution.
 - **area** Y : Compute the area under the curve Y. The limits must be indicated by the marker positions. 
 - **arrow** x, y, length, angle, b : Draw at x,y a blue arrow of length 40 making an angle of 'angle' with horizontal.
 - **BET** : Compute optimum BET surface area and BET constant.
+- **clipdn** Y minval : Replace in the vector Y all elements lower than minval by minval.
 - **clipup** Y maxval : Replace in the vector Y all elements larger than maxval by maxval. 
-- **clipdn** Y minval : Replace in the vector Y all elements lower than minval by minval. 
 - **clipx** < minval : Delete all elements located below minval in the vector used as abscissa.
 - **clipx** > maxval :  Delete all elements located above maxval in the vector used as abscissa.
-- **delb b1** : Delete the data block b1.  
+- **delb b1** : Delete the data block b1.
+- **deldupx** X: Sort X in ascending order and then remove duplicates.
 - **delv V** : Delete the vector V.
-- **delmultx** X: Sort X in ascending order and then remove duplicates. 
 - **despike** V winsiz : Removes spikes, which point width are lower than winsiz, in V.
-- **labX** Time (s) : Display 'Time (s)' as label of X axis.
 - **fft** V : Compute the Discrete Fast Fourier Transform of V.
 - **IRabs** : Convert an IR spectrum in absorbance.
 - **IRtrans** : Convert an IR spectrum in transmittance.
 - **labY1** Rate (rpm) : Display 'Rate (rpm)' as label of Y1 axis.
 - **labY2** Intensity : Display 'Intensity' as label of Y2 axis.
-- **lineq** V1 : Compute, for curve V1, the equation of the line linking marker positions. 
+- **labX** Time (s) : Display 'Time (s)' as label of X axis.
 - **linefit** V1 -1 : Compute the equation of the line fitting the curve V1 at the cursor position. The last parameter, which must be either -1 or +1, indicates the direction of the fitting line.
+- **lineq** V1 : Compute, for curve V1, the equation of the line linking marker positions. 
 - **merge b1 b2** : Merge the data blocks b1 and b2 together
 - **name** V1 as V2 : Give to the vector V1 the name V2.
 - **ndec** V n : Set the number of decimal places to n for all V elements.
@@ -976,11 +980,11 @@ The figure 33 shows the result of the script execution.
 - **revert** V : Revert the order of elements in V.
 - **shift** Y v: Add the value v to the portion of Y curve delimited by the markers.
 - **shrink** V n : Reduce in the number of elements in V by a factor n.
-- **stats** V : Return statistics on V.
 - **sort** V : Sort the elements of the vector V in ascending order.
+- **stats** V : Return statistics on V.
 - **swapv V1 V2** : Exchange all the elements between vectors V1 and V2. Does not change the names.
-- **text** x, y, title, r, 14 : Write 'title' at x,y using a red font with size 14.
 - **symbol** Y : Draw symbols on the location of data points for the vector Y.
+- **text** x, y, title, r, 14 : Write 'title' at x,y using a red font with size 14.
 
 
 

@@ -9,8 +9,10 @@ import requests
 
 
 def isNumber(s):
-    """
-       Return True if 's' can be converted in a float
+    """ Return True if 's' can be converted in a float.
+
+    :param s: the value to test
+    :return: a boolean
     """
     try:
         float(s)
@@ -20,8 +22,10 @@ def isNumber(s):
 
 
 def isNumeric(list):
-    """
-       Return True if all elements in 'list' are numeric
+    """ Return True if all elements in 'list' are numeric.
+
+    :param list: the list to test
+    :return: a boolean
     """
     if not len(list):
         return False
@@ -34,23 +38,35 @@ def isNumeric(list):
 
 
 def isNotNumeric(list):
-    """
-       Return True if at least one element in 'list' is not numeric
+    """  Return True if at least one element in 'list' is not numeric.
+
+    :param list: the list to test
+    :return: a boolean
     """
     return not (isNumeric(list))
 
 
-def isNumData(line, sep=None):
+def isNumData(nstring, sep=None):
+    """  Return True if 'nstring' contains only numeric data.
+
+         Convert the string in list and call isNumeric.
+
+    :param nstring: the string to test
+    :return: a boolean
     """
-        Return True if the line contains only numeric data.
-    """
-    if isNumber(line):
+    if isNumber(nstring):
         return True
     if sep is None:
-        # Try to guess the column separator
-        dialect = csv.Sniffer().sniff(line)
-        sep = dialect.delimiter
-    items = line.split(sep)
+        # Try to guess the element separator
+        try:
+            dialect = csv.Sniffer().sniff(nstring)
+        except csv.Error:
+            sep = None
+        else:
+            sep = dialect.delimiter
+    if sep is None:
+        return isNumeric(nstring)
+    items = nstring.split(sep)
     if sep == ' ':
         # Remove empty elements (case of multiple space separators)
         items = [x for x in items if x]
@@ -58,8 +74,10 @@ def isNumData(line, sep=None):
 
 
 def commaToDot(s):
-    """
-       Return s where all commas have been replaced by dots
+    """  Return s where all commas have been replaced by dots.
+
+    :param s: the string to test
+    :return: the modified string.
     """
     s = s.replace(',', '.')
     return s
@@ -71,6 +89,12 @@ def round_to_n(x, n):
     :param x: the number to round
     :param n: the number of significant figures
     :return: the rounded number
+
+    :examples
+    round_to_n(0.045624, 3) == 0.0456
+    round_to_n(0.45624, 3) == 0.456
+    round_to_n(1.45624, 2) == 1.5
+    round_to_n(14.5624, 4) == 14.56
     """
     if not x:
         return 0
@@ -83,8 +107,10 @@ def round_to_n(x, n):
 def findFile(name, path):
     """ Return the path of the first file which name is 'name' inside the folder 'path'.
 
-        Return None is the file is not found
-    """
+    :param name: the name of the file
+    :param path: the path of the folder where the file is assumed to be.
+    :return: the path or None is the file is not found.
+    """ 
     for root, dirs, files in os.walk(path):
         if name in files:
             return os.path.join(root, name)
@@ -92,7 +118,7 @@ def findFile(name, path):
 
 
 def checkWeb():
-    """ Check connection to the Internet
+    """ Check Internet connection
 
     :return: True is connected, False otherwise.
     """
@@ -361,8 +387,8 @@ def dataToFile(filename, blklst, headers):
                 fo.write('\n\n')            # to mark the next block
         fo.close()
         return (0, "")
-    except (ValueError) as e:
-        return (2, str(e))
+    except (PermissionError, ValueError) as err:
+        return (2, str(err))
 
 
 
@@ -391,12 +417,12 @@ def arrayToString(nparray, vectnames=None):
 def listToArray(numlst):
     """ Convert a list of list into a numpy array
 
-       Non numeric elements will be set to zero.
-       Each sublist should contain the same number of elements and the sublists
-       are assumed to be the columns (X & Y values)
+        Non numeric elements will be set to zero.
+        Each sublist should contain the same number of elements and 
+        the sublists are assumed to be the columns (X & Y values).
 
     :param numlst: the list to be converted
-    :return: a numpy array or None if an error occurred
+    :return: a numpy array or None if an error is detected.
     """
 
     if numlst == None:
@@ -462,7 +488,7 @@ def calcArea(X, Y, link=False):
 
 
 def shrinkRows(A, factor, aver=True):
-    """ Reduce the number of rows by a factor 'factor'.
+    """ Reduce the number of rows in array 'A' by a factor 'factor'.
 
         If the 'aver' = True replace in each element by the average of
         the 'factor' neighboring values.
@@ -732,6 +758,7 @@ def exchCol(A,i,j):
 
 def sortArr(A, xpos):
     """ Sort rows by ascending values along vector 'xpos'
+
         Call .argsort() on the column 'xpos' to sort, which gives an array of
         row indices that sort 'xpos' column which are passed as an index to
         the original array.
@@ -743,7 +770,7 @@ def sortArr(A, xpos):
     return At
 
 
-def compare(self, it1, it2):
+def compare(it1, it2):
     """ Return 1 if it1 > it2, 0 if it1 = it2 and =1 if it1 < it2
 
         This function replace cmp(it1[0], it2[0]) which was used in Python 2
@@ -755,7 +782,7 @@ def compare(self, it1, it2):
 
 
 
-def delMultX(A, xpos):
+def delDupliX(A, xpos):
     """
        Remove the extra rows which have the same X in the numpy array 'A'
 

@@ -26,6 +26,7 @@ class smoothDlg(QtWidgets.QDialog):
         """ Interactive Smoothing Tool dialog.
 
         :param parent: pyDataVis MainWindow.
+        :param pltw: PlotWin containing the data
         :param cpos: it is the curve position in plotWin.curvelist.
         """
         super (smoothDlg, self).__init__(parent)
@@ -238,6 +239,7 @@ class splinSmoothDlg(QtWidgets.QDialog):
         """ Interactive Spline Smoothing Tool dialog.
 
         :param parent: pyDataVis MainWindow.
+        :param pltw: PlotWin containing the data
         :param cpos: it is the curve position in plotWin.curvelist.
         """
         super (splinSmoothDlg, self).__init__(parent)
@@ -421,6 +423,7 @@ class ALS_SmoothDlg(QtWidgets.QDialog):
     """ Interactive ALS Smoothing Tool dialog.
 
     :param parent: pyDataVis MainWindow.
+    :param pltw: PlotWin containing the data
     :param cpos: it is the curve position in plotWin.curvelist.
     """
     def __init__(self, parent=None, pltw=None, cpos=None):
@@ -615,6 +618,7 @@ class modelSelectDlg(QtWidgets.QDialog):
         """ This class is used to let the used select a model
 
         :param parent: pyDataVis MainWindow.
+        :param pltw: PlotWin containing the data
         """
         super (modelSelectDlg, self).__init__(parent)
 
@@ -1094,7 +1098,8 @@ class fitCurveDlg(QtWidgets.QDialog):
         :param msg: string containing the message 'msg'.
         :return: nothing
         """
-        fo = open("logfile.txt", 'a')
+        path = "{0}/logfile.txt".format(self.parent.progpath)
+        fo = open(path, 'a')
         # prefix with current date and time from now variable
         msg = "\n#{0}\n".format(datetime.datetime.now()) + msg
         fo.write(msg)
@@ -1770,7 +1775,8 @@ class pkFitDlg(QtWidgets.QDialog):
         :param msg: A string containing the message
         :return: nothing
         """
-        fo = open("logfile.txt", 'a')
+        path = "{0}/logfile.txt".format(self.parent.progpath)
+        fo = open(path, 'a')
         # prefix with current date and time from now variable
         msg = "\n#{0}\n".format(datetime.datetime.now()) + msg
         fo.write(msg)

@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from PyQt5.QtCore import ( QFile, QFileInfo, QSettings, QSignalMapper,
-                           QTimer, QVariant, Qt )
+                           QTimer, QVariant, Qt, QPoint )
 from PyQt5 import QtGui, QtWidgets
 
 from plotWindow import plotWin, dCursor
@@ -17,11 +17,12 @@ from toolsDialogs import ( smoothDlg, splinSmoothDlg, ALS_SmoothDlg,
                             modelSelectDlg, fitCurveDlg, pkFindDlg, pkFitDlg,
                             interpolDlg, baselineDlg, noiseDlg, deNoiseDlg )
 from script import script
-from utils import checkURL, cpyFromURL, round_to_n, textToData, exportToVeusz
+from utils import checkWeb, checkURL, cpyFromURL, round_to_n
+from utils import textToData, exportToVeusz
+from tests import runTests
 
 
-
-__version__ = "1.2.1"
+__version__ = "1.3.0"
 
 # - settingsDlg class ------------------------------------------------------------
 
@@ -234,7 +235,6 @@ class infoDlg(QtWidgets.QDialog):
             msg.exec_()
 
 
-
 #- MainWindow --------------------------------------------------------------
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -246,8 +246,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, parent = None):
         super(MainWindow, self).__init__(parent)
 
+        self.app = QtWidgets.QApplication.instance()
+        self.progpath = self.testspath = None
+        # Create the location of the program folder
+        home = os.path.expanduser("~")
+        if os.access(home, os.W_OK):
+            self.progpath = "{0}/.pyDataVis".format(home)
+            if not os.path.exists(self.progpath):
+                 os.mkdir(self.progpath)
+            self.testspath = "{0}/tests".format(self.progpath)
+
         path = inspect.getfile(inspect.currentframe())
-        self.progpath, f = os.path.split(path)
+        path, f = os.path.split(path)
+        self.testspath = "{0}/tests".format(path)
 
         self.mdi = QtWidgets.QMdiArea()
         # Enable drag & drop onto the GUI
@@ -255,7 +266,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.mdi)
 
         # Adapt the MainWindow size to the screen resolution
-        self.app = QtWidgets.QApplication.instance()
         screen = self.app.primaryScreen()
         self.scrsize = screen.size()
         ww = int(self.scrsize.width() * 0.45)
@@ -290,7 +300,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.datacpy = None      # Store a copy of list of numerical arrays
         self.curvelistcpy = None # Store a copy of curvelist
         self.dirtycpy = None
-
         self.create_actions()
         self.load_settings()
         self.smoothDlg = None
@@ -305,6 +314,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.smoothpass = 1
         self.fitmodel = 0
         self.pkfitguess = None
+        self.keyb = None
         self.statusbar = self.statusBar()
         self.statusbar.setSizeGripEnabled(False)
         msg = "Welcome to {0}".format(self.app.applicationName())
@@ -313,17 +323,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle(self.app.applicationName())
         iconpath = '{0}/icons/icon.ico'.format(self.progpath)
         if not os.path.isfile(iconpath):
-            url = "https://github.com/pyDataVis/pyDataVis.github.io/raw/main/img/icon.ico"
-            if checkURL(url):
-                # Create icon directory and copy icon.ico in it
-                path = os.path.dirname(iconpath)
-                if not os.path.exists(path):
-                    os.mkdir(path)
-                cpyFromURL(url, iconpath)
+            # Try to load data files from GitHub
+            url = "https://github.com/pyDataVis/pyDataVis.git"
+            clonedir = "{0}/tmp/pyDataVis".format(self.progpath)
+            errmsg = self.getDataFromUrl(clonedir, url)
+            if errmsg:
+                title = "Fail to get data from GitHub"
+                QtWidgets.QMessageBox.warning(self, title, errmsg)
         if os.path.isfile(iconpath):
             self.setWindowIcon(QtGui.QIcon(iconpath))
         QTimer.singleShot(0, self.loadFiles)
         self.updateUI()
+        # Update User Interface each time a new sub window is activated
         self.mdi.subWindowActivated.connect(self.updateUI)
         if platform.system() == "Darwin":
             self.mdi.setFocus()
@@ -532,6 +543,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 None, None, "Open pyDataVis manual")
         helpUpdateAction = self.createAction("Check for update", self.checkUpdate,
                 None, None, "Check for update on GitHub")
+        helpTestsAction = self.createAction("Run tests", self.runSelfTests,
+                None, None, "Launch testing")
         helpAboutAction = self.createAction("About", self.helpAbout,
                 None, None, "About pyDataVis")
 
@@ -577,7 +590,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.windowMenu = self.menuBar().addMenu("&Window")
         self.windowMenu.aboutToShow.connect(self.updateWindowMenu)
         helpMenu = self.menuBar().addMenu("&Help")
-        self.addActions(helpMenu, (helpAction, helpUpdateAction, helpAboutAction))
+        self.addActions(helpMenu, (helpAction, None,
+                                   helpTestsAction, None, helpAboutAction))
+        #self.addActions(helpMenu, (helpAction, helpUpdateAction, None, helpTestsAction, None, helpAboutAction))
 
 
     def load_settings(self):
@@ -820,8 +835,6 @@ class MainWindow(QtWidgets.QMainWindow):
 #- File menu --------------------------------------------------------------
 
     def fileNew(self):
-        title = self.app.applicationName() + " -- Create a New File"
-        filename = None
         pltw = plotWin(self)
         self.mdi.addSubWindow(pltw)
         self.numpltw += 1
@@ -848,12 +861,15 @@ class MainWindow(QtWidgets.QMainWindow):
         :return: the current subwindow or None.
         """
         subw = self.mdi.currentSubWindow()
-        if subw is None and platform == "Windows":
-            # With Windows, sometimes QtGui.QMdiArea.currentSubWindow()
+        if subw is None and self.numpltw > 0:
+            # Sometimes QtGui.QMdiArea.currentSubWindow()
             # return None even when there are subwindows.
             wlist = self.mdi.subWindowList(QtWidgets.QMdiArea.StackingOrder)
             if len(wlist) > 0:
                 subw = wlist[-1]
+            else:
+                # snitch
+                print("len(wlist) = {0}".format(len(wlist)))
         return subw
 
 
@@ -875,12 +891,8 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg = QtWidgets.QFileDialog(self, title, directory=dirnam, filter=filter)
         filename = dlg.getOpenFileName()[0]
         if filename:
-            # if the file is not already open shows the subwindow
-            subw = self.isAlreadyOpen(filename)
-            if subw is not None:
-                self.mdi.setActiveSubWindow(subw)
-            else:
-                self.loadFile(filename)
+            self.loadFile(filename)
+
 
 
     def fileAppend(self):
@@ -915,8 +927,12 @@ class MainWindow(QtWidgets.QMainWindow):
         :param filename: name of the file containing the data.
         :return: True if success, False otherwise.
         """
+        # if the file is already open shows the subwindow
+        subw = self.isAlreadyOpen(filename)
+        if subw is not None:
+            self.mdi.setActiveSubWindow(subw)
+            return True
         title = self.app.applicationName() + " -- Load data from file"
-
         # Create a new plot window (plotWin)
         title = self.app.applicationName() + " -- Load Error"
         pltw = plotWin(self, filename)
@@ -928,12 +944,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.numpltw += 1
             self.updateUI()
             return True
-        else:
-            msg = "Failed to load {0}: {1}".format(os.path.basename(filename), err)
-            QtWidgets.QMessageBox.warning(self, title, msg)
-            pltw.close()
-            del pltw
-            return False
+        msg = "Failed to load {0}: {1}".format(os.path.basename(filename), err)
+        QtWidgets.QMessageBox.warning(self, title, msg)
+        pltw.close()
+        del pltw
+        return False
 
 
     def appendFile(self, filename):
@@ -1662,7 +1677,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if not os.path.exists(dir):
             # the scripts folder does not exist, create it
             os.makedirs(dir)
-        dir = "{0}/scripts".format(self.progpath)
         filename = QtWidgets.QFileDialog.getSaveFileName(self, title, dir, filter)[0]
         if filename:
             with open(filename, "wt") as file:
@@ -1680,7 +1694,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if subw is None:
             return
         pltw = subw.widget()
-
         cmd = pltw.scriptwin.toPlainText()
         if not cmd:
             msg = "Nothing to execute !"
@@ -2046,6 +2059,18 @@ class MainWindow(QtWidgets.QMainWindow):
             webbrowser.open(url)
 
 
+
+
+    def getSourceFromUrl(self, copydir, url):
+        """  Copy source files from 'url' in 'copydir' folder
+
+        :param copydir: the folder where files will be copied.
+        :param url: the GitHub URL.
+        :return: an error message (= "" if no error)
+        """
+        return
+
+
     def getDataFromUrl(self, copydir, url):
         """  Copy data from 'url' in 'copydir' folder
 
@@ -2059,33 +2084,35 @@ class MainWindow(QtWidgets.QMainWindow):
         status_code = urlopen(url).getcode()
         if status_code != 200:
             return "Cannot access pyDataVis.git"
-        self.statusbar.showMessage("Cloning pyDataVis from GitHub")
+        self.statusbar.showMessage("Cloning pyDataVis data from GitHub")
         # Clone url
-        if platform.system() == "Windows":
-            return "Function not yet implemented"
-        if platform.system() == "Linux":
-            tmppath = "{0}/tmp".format(self.progpath)
-            if not os.path.exists(tmppath):
-                # the tmp folder does not exist, create it
-                os.makedirs(tmppath)
-            os.chdir(tmppath)
-            cmd = "git clone {0}".format(url)
-            os.system(cmd)
-            dirlst = os.listdir(copydir)
-            # Keep only files
-            files = [f for f in dirlst if os.path.isfile(os.path.join(copydir, f)) and f[0] != '.']
-            for f in files:
-                src = os.path.join(copydir, f)
-                dest = os.path.join(self.progpath, f)
+        tmppath = "{0}/tmp".format(self.progpath)
+        if not os.path.exists(tmppath):
+            # the tmp folder does not exist, create it
+            os.makedirs(tmppath)
+        os.chdir(tmppath)
+        cmd = "git clone {0}".format(url)
+        os.system(cmd)
+
+        errmsg = ""
+        dirlst = os.listdir(copydir)
+        # Copy data folders except examples
+        dirs = [f for f in dirlst if os.path.isdir(os.path.join(copydir, f)) and f[0] != '.']
+        for d in dirs:
+            if d != 'examples':
                 try:
-                    shutil.copyfile(src, dest)
-                except IOError as e:
-                    return "Unable to copy file {0}".format(e)
-                # Delete the tmp folder
-                shutil.rmtree(tmppath)
+                    src = os.path.join(copydir, d)
+                    dest = os.path.join(self.progpath, d)
+                    if not os.path.exists(dest):
+                        shutil.copytree(src, dest)
+                except IOError as err:
+                    errmsg = "Fail to copy folder {0}: {1}".format(dest, err)
+                    break
+        # Delete the tmp folder
+        shutil.rmtree(tmppath)
         self.statusbar.showMessage("")
         self.app.restoreOverrideCursor()
-        return ""
+        return errmsg
 
 
     def latestVersion(self):
@@ -2109,7 +2136,7 @@ class MainWindow(QtWidgets.QMainWindow):
         :return: nothing
         """
         curver = self.latestVersion()
-        if curver == None or curver == __version__:
+        if curver == None or curver <= __version__:
             return
 
         title = "Update pyDataVis"
@@ -2121,10 +2148,28 @@ class MainWindow(QtWidgets.QMainWindow):
 
         url = "https://github.com/pyDataVis/pyDataVis.git"
         clonedir = "{0}/tmp/pyDataVis".format(self.progpath)
-        errmsg = self.getDataFromUrl(clonedir, url)
+        errmsg = self.getSourceFromUrl(clonedir, url)
         if errmsg:
             title = "Cannot update from GitHub"
             QtWidgets.QMessageBox.warning(self, title, errmsg)
+
+
+
+    def runSelfTests(self):
+        """ Run self tests, mainly on script commands.
+
+        :return: nothing
+        """
+        if not os.path.exists(self.testspath):
+            # Try to load data files from GitHub
+            url = "https://github.com/pyDataVis/pyDataVis.git"
+            clonedir = "{0}/tmp/pyDataVis".format(self.progpath)
+            errmsg = self.getDataFromUrl(clonedir, url)
+            if errmsg:
+                title = "Fail to get tests data from GitHub"
+                QtWidgets.QMessageBox.warning(self, title, errmsg)
+        if os.path.exists(self.testspath):
+            runTests(self)
 
 
 

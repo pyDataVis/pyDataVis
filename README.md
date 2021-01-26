@@ -56,12 +56,16 @@ python pyDataVis.py
 ```
 
 
-# Support
+## Support
 To display the manual, open the page https://pydatavis.github.io/ in your browser or use the *Help* option in the *Help* menu.
 
-The folder *examples*, in the source archives, contains files for testing almost any function. For those who have not installed from source archives, they can be found on the [website](https://pyDataVis.github.io) of pyDataVis, in [Downloads page](https://pydatavis.github.io/Downloads.html).
+The folder *examples*, in the source archives, contains files for testing almost all the function. For those who have not installed from source archives, they can be found on the [website](https://pyDataVis.github.io) of pyDataVis, in [Downloads page](https://pydatavis.github.io/Downloads.html).
 
 If you need more information, feel free to contact me at: palphonse@wanadoo.fr
+
+
+## Testing
+To see almost every script commands in action you can run the self tests with the 'Run tests' option in Help menu.
 
 
 ## License

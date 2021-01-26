@@ -401,3 +401,4 @@ def convertToTrans(IRspec):
         msg = 'Absorbance data out of range'
     IRspec[1] = np.power(10, (2.0 - IRspec[1]) )
     return (err, msg)
+

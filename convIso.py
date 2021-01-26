@@ -1,5 +1,6 @@
 # Functions for processing N2 adsorption isotherms
 #
+import os
 import datetime
 import numpy as np
 from scipy import stats
@@ -55,13 +56,14 @@ def calcBET(BET):
     return (slope, intercept, r_val, std_err, C, Vm, SBET)
 
 
-def processBET(iso):
+def processBET(iso, logfilnam=None):
     """ Return the optimum BET values.
 
         Find, in the relative pressure range 0.04 - 0.30, a window of at least
         seven data points, giving the best correlation coefficient.
 
     :param iso: Curve (2 vectors) containing the adsorption isotherm.
+    :param logfilnam: name of the file where the results will be saved.
     :return: errmsg (an error message), bestprm (the BET parameters giving the
              best correlation coefficient), Pri (initial relative pressure),
              Prf (final relative pressure).
@@ -95,22 +97,26 @@ def processBET(iso):
                         if cc > bestprm.cc:
                             bestprm = BETprop(w, i, slope, intercept, cc, std_err, C, Vm, SBET)
         if bestprm is not None:
-            # save results in a text file
-            fo = open("logfile.txt", 'a')
-            # write current date and time from now variable
-            headtxt = "#\n#\n#%s\n" % datetime.datetime.now()
-            headtxt += "#Results of computation of BET parameters\n"
-            headtxt += '#w\t i\t slope\t intercept\t r_val\t std_err\t C\t Vm\t SBET\n'
-            fo.write(headtxt)
-            for lin in reslist:
-                strlst = []
-                strlst.append("{0}".format(lin[0]))
-                strlst.append("{0}".format(lin[1]))
-                for n in lin[2:]:
-                    strlst.append("{0:E}".format(n))
-                strlin = '\t'.join(strlst)
-                fo.write("{0}\n".format(strlin))
-            fo.close()
+            if logfilnam is not None:
+                # save results in log file
+                if os.path.exists(logfilnam):
+                    fo = open(logfilnam, 'a')
+                else:
+                    fo = open(logfilnam, 'w')
+                # write current date and time from now variable
+                headtxt = "#\n#\n#%s\n" % datetime.datetime.now()
+                headtxt += "#Results of computation of BET parameters\n"
+                headtxt += '#w\t i\t slope\t intercept\t r_val\t std_err\t C\t Vm\t SBET\n'
+                fo.write(headtxt)
+                for lin in reslist:
+                    strlst = []
+                    strlst.append("{0}".format(lin[0]))
+                    strlst.append("{0}".format(lin[1]))
+                    for n in lin[2:]:
+                        strlst.append("{0:E}".format(n))
+                    strlin = '\t'.join(strlst)
+                    fo.write("{0}\n".format(strlin))
+                fo.close()
             Pri = BET[0][bestprm.i]
             Prf = BET[0][bestprm.i + bestprm.w - 1]
         else:
@@ -118,12 +124,13 @@ def processBET(iso):
     return (errmsg, bestprm, Pri, Prf)
 
 
-def BET(iso, ads):
+def BET(iso, ads, logfilnam=None):
     """ Compute BET from an N2 adsorption isotherm (P/Po, Va)
 
     :param iso: Curve (2 vectors) containing the adsorption isotherm.
     :param ads: String indicating the adsorbent. Currently only nitrogen
                 (ads='N2') is implemented.
+    :param logfilnam: name of the file where the results will be saved.
     :return: a tuple (err, msg) where err = True if an error occurred,
              and msg contains either the error message or the results.
     """
@@ -142,7 +149,7 @@ def BET(iso, ads):
     if errmsg is not None:
         return err, errmsg
 
-    (msg, bestprm, Pri, Prf) = processBET(iso)
+    (msg, bestprm, Pri, Prf) = processBET(iso, logfilnam)
     if msg:
         err = True
     else:
@@ -159,10 +166,11 @@ def BET(iso, ads):
         if iso[0].max() > 0.98:
             msg += '  Adsorbed volume at Psat : {0:7.2f} mL/g\n'.format(iso[1].max())
             msg += '              Pore volume : {0:6.3f} mL/g \n\n'.format(iso[1].max() * gas2liq)
-    fo = open("logfile.txt", 'a')
-    fo.write("\n{0}".format(msg))
-    fo.close()
-    msg += 'These results are saved in logfile.txt'
+    if logfilnam is not None:
+        fo = open(logfilnam, 'a')
+        fo.write("\n{0}".format(msg))
+        fo.close()
+        msg += 'These results are saved in {0}'.format(os.path.basename(logfilnam))
     return err, msg
 
 
@@ -224,7 +232,7 @@ def tHarkins(Pr):
     return (1.399/(0.034 - np.log10(Pr)))**0.5
 
 
-def PSDcalc(iso, tcurv='tfit', geom='cylindric'):
+def PSDcalc(iso, savename, tcurv='tfit', geom='cylindric'):
     """ Compute the PSD from N2 adsorption isotherm.
 
         Pore Size Distribution (PSD) is calculated with BJH method.
@@ -326,5 +334,5 @@ def PSDcalc(iso, tcurv='tfit', geom='cylindric'):
     header += "Wp\tVp\tdVdW\tVcum"
     numform = ['%5.1f', '%7.5f', '%7.5f', '%7.4f']
     data = np.stack((Wp, Vp, dVdW, Vcum), axis=-1)
-    np.savetxt("PSD.txt", data, delimiter='\t', fmt=numform, header=header)
+    np.savetxt(savename, data, delimiter='\t', fmt=numform, header=header)
     return err, errmsg

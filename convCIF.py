@@ -1,6 +1,7 @@
 # Use Dans_Diffraction package to generate a simulated XRD pattern
 # from the CIF data.
 #
+import os
 import numpy as np
 
 from utils import isNumeric, isNotNumeric, listToArray, dataToFile
@@ -37,11 +38,15 @@ def CIF(flines, savename):
         return "It seems that this is not a CIF format"
 
     errmsg = None
+    dir = os.path.dirname(savename)
+    if not os.access(dir, os.W_OK):
+        return "Cannot save 'dans.cif' temporary file"
     # Save flines in 'dans.cif'
-    with open("dans.cif", "w") as outfile:
+    outnam = "{0}/dans.cif".format(dir)
+    with open(outnam, "w") as outfile:
         outfile.write("\n".join(flines))
     # load cif file
-    xtl=dif.Crystal('dans.cif')
+    xtl=dif.Crystal(outnam)
     # Get Crystal structure parameters
     info = xtl.info()
     lines = info.splitlines()
