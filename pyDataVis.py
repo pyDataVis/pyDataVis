@@ -17,12 +17,12 @@ from toolsDialogs import ( smoothDlg, splinSmoothDlg, ALS_SmoothDlg,
                             modelSelectDlg, fitCurveDlg, pkFindDlg, pkFitDlg,
                             interpolDlg, baselineDlg, noiseDlg, deNoiseDlg )
 from script import script
-from utils import checkWeb, checkURL, cpyFromURL, round_to_n
+from utils import checkURL, cpyFromURL, round_to_n
 from utils import textToData, exportToVeusz
 from tests import runTests
 
 
-__version__ = "1.3.0"
+__version__ = "1.4.0"
 
 # - settingsDlg class ------------------------------------------------------------
 
@@ -161,7 +161,7 @@ class infoDlg(QtWidgets.QDialog):
             title = "About pyDataVis"
             self.text.setReadOnly(True)
             iconLabel = QtWidgets.QLabel(self)
-            logopath = '{0}/icons/logo.jpg'.format(parent.progpath)
+            logopath = os.path.join(parent.progpath, "icons", "logo.jpg")
             if not os.path.exists(logopath):
                 url = 'https://github.com/pyDataVis/pyDataVis.github.io/raw/main/img/logo.jpg'
                 if checkURL(url):
@@ -214,7 +214,7 @@ class infoDlg(QtWidgets.QDialog):
 
     def showLicense(self):
         fo = None
-        licpath = "{0}/LICENSE".format(self.parent.progpath)
+        licpath = os.path.join(self.parent.progpath, "LICENSE")
         if os.path.isfile(licpath):
             fo = open(licpath, 'r')
             txt = fo.read()
@@ -251,14 +251,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # Create the location of the program folder
         home = os.path.expanduser("~")
         if os.access(home, os.W_OK):
-            self.progpath = "{0}/.pyDataVis".format(home)
+            self.progpath = os.path.join(home, ".pyDataVis")
             if not os.path.exists(self.progpath):
                  os.mkdir(self.progpath)
-            self.testspath = "{0}/tests".format(self.progpath)
-
-        path = inspect.getfile(inspect.currentframe())
-        path, f = os.path.split(path)
-        self.testspath = "{0}/tests".format(path)
+            self.testspath = os.path.join(self.progpath, "tests")
 
         self.mdi = QtWidgets.QMdiArea()
         # Enable drag & drop onto the GUI
@@ -321,12 +317,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusbar.showMessage(msg, 5000)
         self.updateWindowMenu()
         self.setWindowTitle(self.app.applicationName())
-        iconpath = '{0}/icons/icon.ico'.format(self.progpath)
+        iconpath = os.path.join(self.progpath, "icons", "icon.ico")
         if not os.path.isfile(iconpath):
             # Try to load data files from GitHub
-            url = "https://github.com/pyDataVis/pyDataVis.git"
-            clonedir = "{0}/tmp/pyDataVis".format(self.progpath)
-            errmsg = self.getDataFromUrl(clonedir, url)
+            url = "https://github.com/pyDataVis/pyDataVis/archive/main.zip"
+            errmsg = self.getDataFromUrl(url)
             if errmsg:
                 title = "Fail to get data from GitHub"
                 QtWidgets.QMessageBox.warning(self, title, errmsg)
@@ -541,10 +536,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         helpAction = self.createAction("Help", self.help,
                 None, None, "Open pyDataVis manual")
-        helpUpdateAction = self.createAction("Check for update", self.checkUpdate,
-                None, None, "Check for update on GitHub")
-        helpTestsAction = self.createAction("Run tests", self.runSelfTests,
-                None, None, "Launch testing")
+        helpScriptTestAction = self.createAction("Run script tests", self.runSelfTests,
+                None, None, "Test script commands")
+        helpIOTestAction = self.createAction("Run I/O tests", self.runSelfTests,
+                None, None, "Test Input/Output")
+        helpConvTestAction = self.createAction("Run convert tests", self.runSelfTests,
+                None, None, "Test convert options")
+        helpUpdateAction = self.createAction("Update from GitHub", self.updateFromGitHub,
+                None, None, "Download data from GitHub")
         helpAboutAction = self.createAction("About", self.helpAbout,
                 None, None, "About pyDataVis")
 
@@ -591,8 +590,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.windowMenu.aboutToShow.connect(self.updateWindowMenu)
         helpMenu = self.menuBar().addMenu("&Help")
         self.addActions(helpMenu, (helpAction, None,
-                                   helpTestsAction, None, helpAboutAction))
-        #self.addActions(helpMenu, (helpAction, helpUpdateAction, None, helpTestsAction, None, helpAboutAction))
+                                   helpScriptTestAction, helpIOTestAction,
+                                   helpConvTestAction, None,
+                                   helpUpdateAction, None, helpAboutAction))
 
 
     def load_settings(self):
@@ -867,9 +867,6 @@ class MainWindow(QtWidgets.QMainWindow):
             wlist = self.mdi.subWindowList(QtWidgets.QMdiArea.StackingOrder)
             if len(wlist) > 0:
                 subw = wlist[-1]
-            else:
-                # snitch
-                print("len(wlist) = {0}".format(len(wlist)))
         return subw
 
 
@@ -891,8 +888,9 @@ class MainWindow(QtWidgets.QMainWindow):
         dlg = QtWidgets.QFileDialog(self, title, directory=dirnam, filter=filter)
         filename = dlg.getOpenFileName()[0]
         if filename:
-            self.loadFile(filename)
-
+            msg = self.loadFile(filename)
+            if msg:
+                QtWidgets.QMessageBox.warning(self, title, msg)
 
 
     def fileAppend(self):
@@ -925,14 +923,14 @@ class MainWindow(QtWidgets.QMainWindow):
         """ Load the data from the text file 'filename'
 
         :param filename: name of the file containing the data.
-        :return: True if success, False otherwise.
+        :return: a string containing an error message ("" if not error)
         """
         # if the file is already open shows the subwindow
         subw = self.isAlreadyOpen(filename)
         if subw is not None:
             self.mdi.setActiveSubWindow(subw)
-            return True
-        title = self.app.applicationName() + " -- Load data from file"
+            return ""
+
         # Create a new plot window (plotWin)
         title = self.app.applicationName() + " -- Load Error"
         pltw = plotWin(self, filename)
@@ -943,12 +941,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.raise_()
             self.numpltw += 1
             self.updateUI()
-            return True
+            return ""
         msg = "Failed to load {0}: {1}".format(os.path.basename(filename), err)
-        QtWidgets.QMessageBox.warning(self, title, msg)
         pltw.close()
         del pltw
-        return False
+        return msg
 
 
     def appendFile(self, filename):
@@ -972,6 +969,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.mdi.setActiveSubWindow(subw)
             return None
 
+        # Check if the file to append can be decoded.
         errmsg, txt = pltw.fileToString(filename)
         if errmsg:
             return errmsg
@@ -996,7 +994,17 @@ class MainWindow(QtWidgets.QMainWindow):
         (nv1, npt1) = np.shape(pltw.blklst[0])
         if nv1 != nv2:
             return "The file should contain the same number of vectors"
-        pltw.blklst[0] = np.concatenate((pltw.blklst[0], blocks[0]), axis = 1)
+        if pltw.blklst[0][0][npt1-1] < pltw.blklst[0][0][0]:
+            # X decreasing for initial data
+            if blocks[0][0][npt2 - 1] > blocks[0][0][0]:
+                 # X increasing for additional data
+                 # revert additional data
+                 blocks[0] = np.array([x[::-1] for x in blocks[0]])
+            # add new data at the beginning
+            pltw.blklst[0] = np.concatenate((blocks[0], pltw.blklst[0]), axis=1)
+        else:
+            # add new data at the end
+            pltw.blklst[0] = np.concatenate((pltw.blklst[0], blocks[0]), axis = 1)
         pltw.plotCurves()
         pltw.dirty = True
         # update data table
@@ -1015,24 +1023,41 @@ class MainWindow(QtWidgets.QMainWindow):
         title = self.app.applicationName() + " -- Import File"
         filter = "Spreadsheet files (*.xl* *.ods);;All files (*.*)"
         filename = QtWidgets.QFileDialog.getOpenFileName(self, title, filter=filter)[0]
-        if filename:
-            # Create a new plot window (plotWin)
-            title = self.app.applicationName() + " -- Import Error"
-            pltw = plotWin(self, filename)
-            err = pltw.importSheets(filename)
-            if err == "":
-                self.mdi.addSubWindow(pltw)
-                pltw.show()
-                self.raise_()
-                self.numpltw += 1
-                self.updateUI()
-                return True
-            else:
-                msg = "Failed to import {0}: {1}".format(os.path.basename(filename), err)
-                QtWidgets.QMessageBox.warning(self, title, msg)
-                pltw.close()
-                del pltw
-                return False
+        if not filename:
+            return
+        err, msg = self.importxls(filename)
+        if err:
+            QtWidgets.QMessageBox.warning(self, title, msg)
+
+
+    def importxls(self, filename):
+        """ Import data from a spreadsheet file
+
+        :param filename: name of the spreadsheet file to import.
+        :return: a tuple (err, msg). err = 0 if success, 1 if failure.
+                 msg = "" is no error or contains an error message.
+        """
+        # Create a new plot window (plotWin)
+        ext = os.path.splitext(filename)[1]
+        if ext == 'ods':
+            try:
+                import odfpy
+            except ImportError:
+                msg = "odfpy  module must be installed to import ODF files"
+                return 1, msg
+        pltw = plotWin(self, filename)
+        msg = pltw.importSheets(filename)
+        if msg == "":
+            self.mdi.addSubWindow(pltw)
+            pltw.show()
+            self.raise_()
+            self.numpltw += 1
+            self.updateUI()
+            return 0, msg
+        msg = "Failed to import {0}: {1}".format(os.path.basename(filename), msg)
+        pltw.close()
+        del pltw
+        return 1, msg
 
 
     def fileSave(self):
@@ -1065,7 +1090,7 @@ class MainWindow(QtWidgets.QMainWindow):
         :return: True is success, False otherwise.
         """
         title = self.app.applicationName() + " -- Save File As"
-        filter = "Text files (*.txt *.plt);;All files (*.*)"
+        filter = "All files (*.*);;Text files (*.txt *.plt)"
         subw = self.getCurrentSubWindow()
         if subw is not None:
             pltw = subw.widget()
@@ -1073,9 +1098,16 @@ class MainWindow(QtWidgets.QMainWindow):
             pltw = None
         done = False
         if pltw is not None:
+            basename, ext = os.path.splitext(pltw.filename)
+            ext = ext.upper()
+            if ext == ".TXT" or ext == ".PLT":
+                filename = pltw.filename
+            else:
+                # the file name is obtained by replacement of the extension by .txt
+                filename = "{0}.txt".format(basename)
             filename = QtWidgets.QFileDialog.getSaveFileName(self,
                             title,
-                            pltw.filename, filter=filter)[0]
+                            filename, filter=filter)[0]
             if filename:
                 pltw.filename = filename
                 done = self.fileSave()
@@ -1186,13 +1218,27 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Append .xlsx extension
         info = QFileInfo(filename)
-        vszname = info.path() + '/' + info.baseName() + ".xlsx"
+        xlsname = info.path() + '/' + info.baseName() + ".xlsx"
         filename = QtWidgets.QFileDialog.getSaveFileName(self,
                         title,
-                        vszname, "Excel files (*.xl* *.*)")[0]
+                        xlsname, "Excel files (*.xl* *.*)")[0]
         if not filename:
             return False
+        err, msg = self.exportExcel(pltw, filename)
+        if err:
+            QtWidgets.QMessageBox.warning(self, title, msg)
+            return False
+        self.statusbar.showMessage(msg, 20000)
 
+
+    def exportExcel(self, pltw, filename):
+        """ Export to Excel the vectors in 'pltw'.
+
+        :param pltw: plotWin containing data to export.
+        :param filename: name of the spreadsheet file.
+        :return: a tuple (err, msg). err = 0 if success, 1 if failure.
+                 msg = contains either an error or a success message.
+        """
         # Create a pandas dataframe for each data block
         dflst = []
         for i, blk in enumerate(pltw.blklst):
@@ -1201,7 +1247,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 vnamlst.append(vinfo.name)
             df = pd.DataFrame(data=np.transpose(pltw.blklst[i]), columns=vnamlst)
             dflst.append(df)
-
         try:
             # Create an ExcelWriter object
             with pd.ExcelWriter(filename) as writer:
@@ -1209,13 +1254,9 @@ class MainWindow(QtWidgets.QMainWindow):
                     blknam = "Block {0}".format(i + 1)
                     df.to_excel(writer, sheet_name=blknam, index=False)
         except (IOError, OSError) as err:
-            QtWidgets.QMessageBox.warning(self, title, err)
-            return False
-
+            return 1, err
         msg = "Data exported in {0}".format(os.path.basename(filename))
-        self.statusbar.showMessage(msg, 20000)
-        return True
-
+        return 0, msg
 
 
     def fileExportCSV(self):
@@ -1295,7 +1336,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         :return: nothing.
         """
-        path = "{0}/logfile.txt".format(self.progpath)
+        path = os.path.join(self.progpath, "logfile.txt")
         if os.path.isfile(path):
             fo = open(path, 'r')
             txt = fo.read()
@@ -1636,7 +1677,11 @@ class MainWindow(QtWidgets.QMainWindow):
             pltw.info.setText(msg)
             if savename is not None:
                 # load the converted file
-                if self.loadFile(savename):
+                msg = self.loadFile(savename)
+                if msg:
+                    title = "{0} conversion".format(sel)
+                    QtWidgets.QMessageBox.warning(self, title, msg)
+                else:
                     # Close the previous SubWindow if the file was overwritten
                     if sel != "CIF":
                         subw.close()
@@ -1655,7 +1700,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pltw = subw.widget()
         title = "Open a script file"
         filter = "Text files (*.txt);;All files (*.*)"
-        dir = "{0}/scripts".format(self.progpath)
+        dir = os.path.join(self.progpath, "scripts")
         filename = QtWidgets.QFileDialog.getOpenFileName(self, title, dir, filter)[0]
         if filename:
             with open(filename) as file:
@@ -1673,7 +1718,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pltw = subw.widget()
         title = "Save a script file"
         filter = "Text files (*.txt);;All files (*.*)"
-        dir = "{0}/scripts".format(self.progpath)
+        dir = os.path.join(self.progpath, "scripts")
         if not os.path.exists(dir):
             # the scripts folder does not exist, create it
             os.makedirs(dir)
@@ -1763,7 +1808,7 @@ class MainWindow(QtWidgets.QMainWindow):
             msg = "Nothing to execute !"
             QtWidgets.QMessageBox.warning(self, "Execute a command", msg)
             return
-        path = "{0}/input.txt".format(self.progpath)
+        path= os.path.join(self.progpath, "input.txt")
         if os.path.isfile(path):
             # delete input.txt file
             os.remove(path)
@@ -1780,16 +1825,16 @@ class MainWindow(QtWidgets.QMainWindow):
         # Add the script from Script window
         pyscript += cmd
         # Save the script in 'scripts/scriptfile.py'
-        path = "{0}/scripts".format(self.progpath)
+        path = os.path.join(self.progpath, "scripts")
         if not os.path.exists(path):
             # the scripts folder does not exist, create it
             os.makedirs(path)
-        scriptpath = "{0}/scriptfile.py".format(path)
+        scriptpath = os.path.join(path, "scriptfile.py")
         with open(scriptpath, "wt") as file:
              file.write(pyscript)
         # execute the script, the output is stored in "output.txt" file.
         import subprocess
-        path = "{0}/ouput.txt".format(self.progpath)
+        path = os.path.join(self.progpath, "output.txt")
         with open(path, "w+") as output:
             subprocess.run(["python", scriptpath], stdout=output)
         # Show the process output in info window
@@ -2060,7 +2105,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-
     def getSourceFromUrl(self, copydir, url):
         """  Copy source files from 'url' in 'copydir' folder
 
@@ -2071,10 +2115,9 @@ class MainWindow(QtWidgets.QMainWindow):
         return
 
 
-    def getDataFromUrl(self, copydir, url):
+    def getDataFromUrl(self, url):
         """  Copy data from 'url' in 'copydir' folder
 
-        :param copydir: the folder where data will be copied.
         :param url: the GitHub URL.
         :return: an error message (= "" if no error)
         """
@@ -2086,33 +2129,64 @@ class MainWindow(QtWidgets.QMainWindow):
             return "Cannot access pyDataVis.git"
         self.statusbar.showMessage("Cloning pyDataVis data from GitHub")
         # Clone url
-        tmppath = "{0}/tmp".format(self.progpath)
+        tmppath = os.path.join(self.progpath, "tmp")
         if not os.path.exists(tmppath):
             # the tmp folder does not exist, create it
             os.makedirs(tmppath)
         os.chdir(tmppath)
-        cmd = "git clone {0}".format(url)
-        os.system(cmd)
 
+        zippath = os.path.join(tmppath, "main.zip")
+        if checkURL(url):
+            cpyFromURL(url, zippath)
+        else:
+            return "Invalid URL: {0}".format(url)
+        # check if the main.zip file has been created
+        if not os.path.exists(zippath):
+            return "Fail to get data archive from GitHub"
+
+        shutil.unpack_archive(zippath)
+        copydir = os.path.join(tmppath, "pyDataVis-main")
         errmsg = ""
         dirlst = os.listdir(copydir)
-        # Copy data folders except examples
-        dirs = [f for f in dirlst if os.path.isdir(os.path.join(copydir, f)) and f[0] != '.']
-        for d in dirs:
-            if d != 'examples':
-                try:
-                    src = os.path.join(copydir, d)
-                    dest = os.path.join(self.progpath, d)
-                    if not os.path.exists(dest):
+        # Copy data folders
+        files = [f for f in dirlst if f != '.']
+        for f in files:
+            try:
+                src = os.path.join(copydir, f)
+                dest = os.path.join(self.progpath, f)
+                if not os.path.exists(dest):
+                    if os.path.isdir(src):
                         shutil.copytree(src, dest)
-                except IOError as err:
-                    errmsg = "Fail to copy folder {0}: {1}".format(dest, err)
-                    break
+                    else:
+                        shutil.copyfile(src, dest)
+            except IOError as err:
+                errmsg = "Fail to copy folder {0}: {1}".format(dest, err)
+                break
+
         # Delete the tmp folder
-        shutil.rmtree(tmppath)
+        shutil.rmtree(copydir)
         self.statusbar.showMessage("")
         self.app.restoreOverrideCursor()
         return errmsg
+
+
+    def updateFromGitHub(self):
+        """ Update from GitHub
+
+        :return: nothing
+        """
+        url = "https://github.com/pyDataVis/pyDataVis/archive/main.zip"
+        if os.path.exists(self.progpath):
+            shutil.rmtree(self.progpath)
+            os.mkdir(self.progpath)
+        errmsg = self.getDataFromUrl(url)
+        title = "Update from GitHub"
+        if errmsg:
+            QtWidgets.QMessageBox.warning(self, title, errmsg)
+        else:
+            msg = "Successful update"
+            QtWidgets.QMessageBox.information(self, title, msg)
+
 
 
     def latestVersion(self):
@@ -2131,31 +2205,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def checkUpdate(self):
-        """ Check for pyDataVis update on GitHub
+        """ Check if there is a new version on GitHub
 
-        :return: nothing
+        :return: True if a new version exists.
         """
         curver = self.latestVersion()
         if curver == None or curver <= __version__:
-            return
+            return False
 
         title = "Update pyDataVis"
         msg = "There is a new version of pyDataVis, do you want to update ?"
-        if QtWidgets.QMessageBox.information(self, title, msg,
+        r = QtWidgets.QMessageBox.information(self, title, msg,
                      QtWidgets.QMessageBox.Yes |
-                     QtWidgets.QMessageBox.No) != QtWidgets.QMessageBox.Yes:
-            return
-
-        url = "https://github.com/pyDataVis/pyDataVis.git"
-        clonedir = "{0}/tmp/pyDataVis".format(self.progpath)
-        errmsg = self.getSourceFromUrl(clonedir, url)
-        if errmsg:
-            title = "Cannot update from GitHub"
-            QtWidgets.QMessageBox.warning(self, title, errmsg)
+                     QtWidgets.QMessageBox.No)
+        return r == QtWidgets.QMessageBox.Yes
 
 
 
-    def runSelfTests(self):
+    def runSelfTests(self, sel):
         """ Run self tests, mainly on script commands.
 
         :return: nothing
@@ -2163,13 +2230,15 @@ class MainWindow(QtWidgets.QMainWindow):
         if not os.path.exists(self.testspath):
             # Try to load data files from GitHub
             url = "https://github.com/pyDataVis/pyDataVis.git"
-            clonedir = "{0}/tmp/pyDataVis".format(self.progpath)
+            clonedir = os.path.join(self.progpath, "tmp", "pyDataVis")
             errmsg = self.getDataFromUrl(clonedir, url)
             if errmsg:
                 title = "Fail to get tests data from GitHub"
                 QtWidgets.QMessageBox.warning(self, title, errmsg)
         if os.path.exists(self.testspath):
-            runTests(self)
+            sender = self.sender()
+            sel = sender.text()
+            runTests(self, sel)
 
 
 

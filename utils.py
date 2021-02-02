@@ -17,7 +17,7 @@ def isNumber(s):
     try:
         float(s)
         return True
-    except ValueError:
+    except (TypeError, ValueError):
         return False
 
 
@@ -237,7 +237,7 @@ def textToBlocks(lines, sep):
 
 
 def JcampDX(textlines):
-    """ Decode IR or MS data from text in JCamp-DX format
+    """ Decode IR, NMR or MS data from text in JCamp-DX format
 
         This format is only suitable for spectra from spectroscopy experiments:
         http://cedadocs.ceda.ac.uk/999/1/JCAMP-DX_format.html
@@ -290,9 +290,10 @@ def JcampDX(textlines):
                         else:
                             newlin = "#{0}".format(line)
                         header.append(newlin)
-                        if lin.find('##XYDATA=(X++(Y..Y))') != -1:
+                        if lin.find('##XYDATA=') != -1:
                             head = False
-                            dform = 'X++(Y..Y)'
+                            if lin.find('X++(Y..Y)') != -1:
+                                dform = 'X++(Y..Y)'
                         elif lin.find('##PEAK TABLE=') != -1:
                             head = False
                             dform = 'XY..XY'
@@ -317,7 +318,10 @@ def JcampDX(textlines):
                                 if deltaX == 0.0:
                                     errmsg = 'DELTAX not found'
                                 else:
-                                    items = lin.rsplit(' ')
+                                    if lin.find(',') != -1:
+                                        items = lin.rsplit(',')
+                                    else:
+                                        items = lin.rsplit(' ')
                                     n = len(items) - 1
                                     X0 = float(items[0])
                                     Xn = X0 + n * deltaX
@@ -345,7 +349,7 @@ def textToData(text, sep):
     :param text: list of lines containing the text data
     :param sep: a character, the column separator; if = 0 means 1D data
     :return: a tuple (errmsg, blocks, headers) where
-             - errmsg contains an error message (errmsg = None if no error)
+             - errmsg contains an error message (errmsg = "" if no error)
              - blocks contains a list of data blocks (numpy arrays)
              - headers contains a list of headers
     """

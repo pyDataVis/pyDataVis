@@ -1,7 +1,8 @@
-#### Test of the "revert" script command ####
+#### Test of the "revertb" and "revertv" script commands ####
 #
-# This command revert the order of elements in a vector.
+# "revertb" revert the order of elements in all vectors of a data block.
 #
+# "revertv" revert the order of elements in a vector.
 #
 #plot X,Y
 #

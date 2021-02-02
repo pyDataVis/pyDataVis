@@ -121,8 +121,8 @@ There are two ways to supply data in the *Text editor window*:
 
 ## Reading spectra in JCAMP-DX format
 
-pyDataVis can automatically decode and plot the files containing infrared spectra and mass spectra in [JCAMP-DX format](http://www.jcamp-dx.org/protocols.html). This format is used in [NIST Chemistry WebBook](https://webbook.nist.gov/chemistry/) database.
-pyDataVis also recognizes the Raman data file from the [RRUFF](https://rruff.info/) database.
+pyDataVis can automatically decode and plot the files containing IR, mass or NMR spectra in [JCAMP-DX format](http://www.jcamp-dx.org/protocols.html). This format is used for example in [NIST Chemistry WebBook](https://webbook.nist.gov/chemistry/) or [ChemSpider](http://www.chemspider.com/) databases.
+pyDataVis also recognizes the Raman data file format from the [RRUFF](https://rruff.info/) database.
 
 ## Append
 
@@ -173,7 +173,7 @@ The number of items in the line containing the vector names must match the numbe
 
 In the absence of a line containing the vector names, the vectors are named automatically as V1B1, V2B1, ... where the B1 ending indicates that these vectors belong to the first data block. Thus if the file contains a second data block the vectors belonging to this block will be named V1B2, V2B2, ...
 
-If no plot command is found in the file header, the first column (V1B1) is assumed to contain X values. Thus, if the file contains three columns (vectors), V1B1, V2B1 and V3B1, two curves will be plotted automatically, V2B1 against V1B1 and V3B2 against V1B1.
+If no plot command is found in the file header, the first column (V1B1) is assumed to contain X values. Thus, if the file contains three columns (vectors), V1B1, V2B1 and V3B1, two curves will be automatically plotted, V2B1 against V1B1 and V3B2 against V1B1.
 
 Several pyDataVis windows can be opened at the same time and curves exchanged between them using the options of the *Curve* menu or keyboard shortcuts.
 
@@ -182,7 +182,7 @@ Several pyDataVis windows can be opened at the same time and curves exchanged be
 
 A curve consists of a set of two vectors (X and Y). Thanks to the *Curves* menu, the curves can be deleted, duplicated or copied. A curve copied in a pyDataVis window cannot be pasted in the same window because two curves cannot share the same name. If the curve is pasted in a window containing a vector having the same name, the original name is suffixed with the ''#'' character. It is the same when a curve is duplicated,
 
-When a X,Y curve is pasted into another window, if the same X-vector already exists in a data block there are two possibilities, either to add the Y-vector at the end of the data block or to create a new data block to store the X and Y vectors. This is left to the choice of the user.
+When a X,Y curve is pasted into another window, if the same X-vector already exists in a data block, there are two possibilities, either to add the Y-vector at the end of the data block or to create a new data block to store the X and Y vectors. This is left to the user's choice.
 
 The *Save in file* option allows for saving a given curve in a new file.
 
@@ -294,7 +294,7 @@ Smoothing is a very powerful technique used all across data analysis. It consist
 
 With the **Smoothing** option of the *Tools* menu two kinds of filter are proposed: the *Moving average* and the *Savitzky-Golay*. 
 
-The [**Moving average**](https://en.wikipedia.org/wiki/Moving_average) filter operates by averaging 'n' points from the input data to produce each point in the output data, where n is an odd integer. The figure 4 shows the smoothing window when the Moving average filter is selected. Three curves are plotted. The grey curve corresponds to the original data, the blue curve to the filtered data and the green curve shows the difference between original and filtered. The goal is that this curve shows only noise.
+The [**Moving average**](https://en.wikipedia.org/wiki/Moving_average) filter operates by averaging 'n' points from the input data to produce each point in the output data, where n is an odd integer. The figure 5 shows the smoothing window when the Moving average filter is selected. Three curves are plotted. The grey curve corresponds to the original data, the blue curve to the filtered data and the green curve shows the difference between original and filtered. The goal is that this curve shows only noise.
 
 ![Figure 5 - The smoothing tool](img/Smoothing.png){width=500px}
 
@@ -465,7 +465,7 @@ The baseline curve can be build from these points by two methods according to th
 
 Once a method is chosen, it is not possible to change it. If you click on *Correct* button the baseline is subtracted from the original data. If you click on *Add BL* button, this does not change the data but a new vector containing the baseline is added to the data block.
 
-If the signal is noisy it is recommended to remove the noise prior to the baseline correction.
+If the signal is too noisy it is recommended to remove the noise prior to the baseline correction (see [Remove noise tool](#remove-noise)).
 
 ![Figure 17 - Baseline correction tool](img/baseline.png){width=500px}
 
@@ -492,7 +492,7 @@ The *Remove Noise* tool of pyDataVis, shown on figure 19, is accessed thanks to 
 In pyDataVis, script commands are used for plotting and to do most of the data processing. Beware that the command names, the vector names and the parameters are case sensitive. Several script commands can be chained together.
 The script commands are written in the *Script window* and executed by typing Ctrl+E or by selecting the option *Execute a script* in the Script menu. Empty lines and lines starting with # are ignored during execution. The script can be executed repeatedly by retyping Ctrl+E as often as desired. If an error occurs during the execution of a script sequence, the process is stopped at the faulty line; the remaining commands are not executed.
 
-Before a script was executed the current data is saved in memory. If something wrong happens during execution the previous state can be restored by selecting the *Undo* option in the *Script* menu.
+Before a script was executed, the current data is saved in memory. If something wrong happens during execution the previous state can be restored by selecting the *Undo* option in the *Script* menu.
 
 The key sequence *Ctrl+K* clears the text in the *Script window* and gives it the focus so a new script can be written without having to click in this window.
 
@@ -535,6 +535,13 @@ symbol Y
 no symbol Y
 ```
 The first will plot symbols for the curve Y whereas the second will use line type. Like the color, the symbol shape is chosen automatically, however it can be temporarily modified with the axis/curve style editor in [Matplotlib toolbar](#matplotlib-toolbar).
+
+You can flip the order of the axis limits thanks to the following commands:
+```
+invertx
+inverty
+```
+These commands works like switches. They are not saved when the file is closed.
 
 It is possible to add text. The following command writes 'Title' at x,y position, using a red font with size 14:
 ```
@@ -785,12 +792,20 @@ shrink V 4
 reduces in the number of elements in V by a factor 4.
 
 
-### revert
+### revertv
 This command: 
 ```
-revert V
+revertv V
 ```
-will revert the order of elements in V. It takes only one parameter, the vector name. All the vectors belonging to the same data block will have their elements reverted as well.
+will revert the order of elements in V. It takes only one parameter, the vector name.
+
+
+### revertb
+This command: 
+```
+revertb 1
+```
+will revert the order of all the elements in a data block. It takes only one parameter, the data block number.
 
 
 ### sort
@@ -964,6 +979,8 @@ The figure 33 shows the result of the script execution.
 - **fft** V : Compute the Discrete Fast Fourier Transform of V.
 - **IRabs** : Convert an IR spectrum in absorbance.
 - **IRtrans** : Convert an IR spectrum in transmittance.
+- **invertx** : Flipping the order of the X axis limits.
+- **inverty** : Flipping the order of the Y axis limits.
 - **labY1** Rate (rpm) : Display 'Rate (rpm)' as label of Y1 axis.
 - **labY2** Intensity : Display 'Intensity' as label of Y2 axis.
 - **labX** Time (s) : Display 'Time (s)' as label of X axis.
@@ -977,7 +994,8 @@ The figure 33 shows the result of the script execution.
 - **onset** V : Determine the onset of a peak. Both markers are used to indicate the baseline and the approximate place of the inflection.
 - **plot** X,Y : Plot Y against X. Each curve require a separate plot command.
 - **plot** X,Y,2 : Plot Y against X using a secondary Y axis.
-- **revert** V : Revert the order of elements in V.
+- **revertb** 1 : Revert the order of all the vector elements in the data block 1.
+- **revertv** V : Revert the order of elements in the vector V.
 - **shift** Y v: Add the value v to the portion of Y curve delimited by the markers.
 - **shrink** V n : Reduce in the number of elements in V by a factor n.
 - **sort** V : Sort the elements of the vector V in ascending order.

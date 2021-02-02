@@ -61,9 +61,11 @@ class script(object):
                        'arctanh', 'cos', 'cosh', 'cumsum', 'cumprod', 'exp',
                        'fabs', 'gradient', 'log', 'log10', 'power',
                        'sin', 'sinh', 'sqrt', 'square', 'tan', 'tanh']
-        self.typ0Lst = [ 'BET', 'BETKr', 'BETAr', 'IRabs', 'IRtrans']
+        self.typ0Lst = [ 'BET', 'BETKr', 'BETAr', 'IRabs', 'IRtrans',
+                         'invertx', 'inverty']
         self.typ1Lst = [ 'delv', 'delb', 'stats', 'area', 'line', 'lineq',
-                         'revert', 'sort', 'deldupx', 'onset', 'fft' ]
+                         'revertb', 'revertv', 'sort', 'deldupx', 'onset',
+                         'fft' ]
         self.typ2Lst = [ 'swapv', 'mergeb', 'clipup', 'clipdn', 'clipx',
                          'linefit', 'shift', 'shrink', 'despike', 'ndec',
                          'PSD' ]
@@ -283,14 +285,18 @@ class script(object):
         vinfo = self.parent.getVinfo(vnam)
         if vinfo is not None:
             nelem = self.parent.blklst[vinfo.blkpos][vinfo.vidx].size
-            if not hasattr(R, "__len__"):
+            try:
+                rsiz = R.size
+            except AttributeError:
                 # R is not a vector
-                self.parent.blklst[vinfo.blkpos][vinfo.vidx] = np.full(nelem, R)
-            else:
-                if R.size == nelem:
-                    self.parent.blklst[vinfo.blkpos][vinfo.vidx] = R
+                if isNumber(R):
+                    self.parent.blklst[vinfo.blkpos][vinfo.vidx] = np.full(nelem, R)
                 else:
-                    return (1, "Vector size do not match")
+                    return (1, "Invalid command syntax")
+            if rsiz == nelem:
+                self.parent.blklst[vinfo.blkpos][vinfo.vidx] = R
+            else:
+                return (1, "Vector size do not match")
         else:
             # If the vector does not exist, check if it is in expression
             if expression.find(vnam) != -1 or expression.find("("+vnam+")") != -1:
@@ -325,7 +331,6 @@ class script(object):
         return (0, "")
 
 
-
     def exeNoArg(self, cmd):
         """ Process the commands with no argument
 
@@ -339,7 +344,7 @@ class script(object):
             cmdidx = self.typ0Lst.index(cmd)
         except ValueError:
             return (1, "Check the parameters")
-        logfilnam = "{0}/logfile.txt".format(self.parent.parent.progpath)
+        logfilnam = os.path.join(self.parent.progpath, "logfile.txt")
         if cmdidx == self.typ0Lst.index('BET'):
             errno, msg = BET(self.parent.blklst[0], 'N2', logfilnam)
         elif cmdidx == self.typ0Lst.index('BETKr'):
@@ -357,6 +362,12 @@ class script(object):
             if not errno:
                 self.parent.laby1 = "Transmittance"
                 self.parent.vectInfolst[0][1].name = 'Transmittance'
+        elif cmdidx == self.typ0Lst.index('invertx'):
+                self.parent.invertX = not(self.parent.invertX)
+                return errno, msg
+        elif cmdidx == self.typ0Lst.index('inverty'):
+                self.parent.invertY = not(self.parent.invertY)
+                return errno, msg
         else:
             return (1, "Internal error")
         if errno == 0:
@@ -433,14 +444,26 @@ class script(object):
                 self.parent.clearMarks()
             return (err, errmsg)
 
-        if cmdidx == self.typ1Lst.index('revert'):
-            # Revert data order in vnam
-            err, errmsg = revert(self.parent, vnam)
+        if cmdidx == self.typ1Lst.index('revertb'):
+            # Revert data order in data block
+            blkno = int(vnam) - 1
+            err, errmsg = revertb(self.parent, blkno)
             if not err:
                 self.parent.dirty = True
                 self.parent.clearMarks()
-                errmsg = "The data block {0} containing the vector {1}" \
-                         " has been reverted".format(blkno+1, vnam)
+                errmsg = "The data order in all the vectors in block {0}" \
+                         " has been reverted".format(blkno+1)
+                err = -1
+            return (err, errmsg)
+
+        if cmdidx == self.typ1Lst.index('revertv'):
+            # Revert data order in vnam
+            err, errmsg = revertv(self.parent, vnam)
+            if not err:
+                self.parent.dirty = True
+                self.parent.clearMarks()
+                errmsg = "The data order in the vector {0}" \
+                         " has been reverted".format(vnam)
                 err = -1
             return (err, errmsg)
 
@@ -531,8 +554,8 @@ class script(object):
             else:
                 errno, msg = PSDcalc(self.parent.blklst[pos], psdnam)
             if not errno:
-                self.parent.parent.loadFile(psdnam)
-            return 0, ""
+                msg = self.parent.parent.loadFile(psdnam)
+            return 0, msg
 
         # The vector name is expected to be the 2nd argument (items[1))
         # except for the clipx command
@@ -752,6 +775,14 @@ def stats(pltw, vnam):
     result += "   Mini = {0:g}\n".format(val)
     val = pltw.blklst[blkno][vpos].max()
     result += "   Maxi = {0:g}\n".format(val)
+    val = val - pltw.blklst[blkno][vpos].min()
+    val = val / (pltw.blklst[blkno][vpos].size - 1)
+    dv = abs(pltw.blklst[blkno][vpos][1] - pltw.blklst[blkno][vpos][0])
+    if dv == val:
+        s = "constant"
+    else:
+        s = "average"
+    result += "   Delta = {0:g},  {1}\n".format(val, s)
     val = pltw.blklst[blkno][vpos].sum()
     result += "   Sum = {0:g}\n".format(val)
     val = np.median(pltw.blklst[blkno][vpos])
@@ -897,10 +928,23 @@ def line(pltw, cnam):
     return 0, ""
 
 
-def revert(pltw, vnam):
+def revertb(pltw, blkno):
+    """ Revert data order in the data block 'blkno'
+
+        :param pltw: plotWin containing data
+        :param blkno: the position of the data block which will be processed.
+        :return: a tuple (err, msg) where err = True if an error occurred,
+                 and msg contains the error message.
+    """
+    if blkno < 0 or blkno >= len(pltw.blklst):
+        return 1, "Wrong block data number"
+    pltw.blklst[blkno] = np.array([x[::-1] for x in pltw.blklst[blkno]])
+    return 0, ""
+
+
+def revertv(pltw, vnam):
     """ Revert data order in the vector 'vnam'
 
-        This implies reverting all the data block containing 'vnam'
         :param pltw: plotWin containing data
         :param vnam: the name of the vector which will be processed.
         :return: a tuple (err, msg) where err = True if an error occurred,
@@ -912,9 +956,10 @@ def revert(pltw, vnam):
     if vinfo is None:
         return 1, "Cannot find vector {0}".format(vnam)
     blkno = vinfo.blkpos
-    (nvec, npt) = np.shape(pltw.blklst[blkno])
-    pltw.blklst[blkno] = np.array([x[::-1] for x in pltw.blklst[blkno]])
+    vidx = vinfo.vidx
+    pltw.blklst[blkno][vidx] = (pltw.blklst[blkno][vidx])[::-1]
     return errno, errmsg
+
 
 
 def sort(pltw, vnam):
@@ -1026,9 +1071,9 @@ def clipx(pltw, val, way):
     xpos = pltw.curvelist[0].xvinfo.vidx
     xmin = pltw.blklst[blkno][xpos].min()
     xmax = pltw.blklst[blkno][xpos].max()
-    if (way == '>' and xmax <= val) or (way == '<' and xmin <= val):
+    if (way == '>' and val >= xmax) or (way == '<' and val <= xmin):
         # nothing to do, return
-        return 1, ""
+        return 0, ""
     # build a list of tuples containing unique (blkno, xpos) pair
     setlist = [(blkno, xpos)]
     ncurv = len(pltw.curvelist)
@@ -1143,7 +1188,8 @@ def linEq(pltw, curvinfo, idx1, idx2):
         :param curvinfo: vinfo object of the relevant curve.
         :param idx1: index of the first point
         :param idx2: index of the second point
-        :return: a string containing the result.
+        :return: a tuple (err, msg). If err=1, msg contains an error message
+                 if err=0, msg contains the result of fitting.
     """
     blkno = curvinfo.yvinfo.blkpos
     xpos = curvinfo.xvinfo.vidx
@@ -1353,14 +1399,18 @@ def fft(pltw, vnam):
     frq = k / T  # two sides frequency range
     frq = frq[range(m)]  # one side frequency range
     # Save FFT in a file
-    filnam = "{0}/{1}-fft.txt".format(pltw.parent.progpath, vnam)
+    filnam = "{0}-fft.txt".format(vnam)
+    filnam = os.path.join(pltw.parent.progpath, filnam)
     try:
         np.savetxt(filnam, np.transpose([frq, FFT]), delimiter='\t')
     except PermissionError as err:
         return err, "Fail to create FFT file: {0}".format(err)
-    if pltw.parent.loadFile(filnam):
-       return 0, ""
-    return err, "Cannot load {0}".format(filnam)
+    msg = pltw.parent.loadFile(filnam)
+    if msg:
+        return err, "Cannot load {0}\n{1}".format(filnam, msg)
+    else:
+        return 0, msg
+
 
 
 def mergeb(pltw, items):

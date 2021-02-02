@@ -15,11 +15,9 @@ cd Downloads
 sudo dpkg -i pyDataVis.deb
 ```
 
-### Installation from Windows package
-This package archive can be found on the [website](https://pyDataVis.github.io) of pyDataVis, in [Downloads page](https://pydatavis.github.io/Downloads.html).
-To install, copy the .zip file to the location where you want store the program. Then extract all files from the archive. To launch the application, in the folder pyDataVis, execute the file *pyDataVis.exe*.
+### Installation with Windows installer
+This installer can be found on the [website](https://pyDataVis.github.io) of pyDataVis, in [Downloads page](https://pydatavis.github.io/Downloads.html).
 
-To remove the application you only have to delete the pyDataVis folder.
 
 ### Installation from the Python Package Index
 Open a Terminal and run:

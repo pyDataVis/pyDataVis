@@ -205,7 +205,8 @@
 <li><a href="#operations-between-vectors">Operations between vectors</a></li>
 <li><a href="#applying-a-function-on-a-vector">Applying a function on a vector</a></li>
 <li><a href="#shrink">shrink</a></li>
-<li><a href="#revert">revert</a></li>
+<li><a href="#revertv">revertv</a></li>
+<li><a href="#revertb">revertb</a></li>
 <li><a href="#sort">sort</a></li>
 <li><a href="#irabs">IRabs</a></li>
 <li><a href="#irtrans">IRtrans</a></li>
@@ -293,7 +294,7 @@ sudo dpkg -i pyDataVis.deb</code></pre>
 <li><p>The second way is to enter the data manually. For example, using the key sequence Ctrl+N (or selecting <em>New</em> in the <em>File</em> menu) opens a new empty pyDataVis window. You may then input the data in the Text editor window. It is also possible to paste text data from an other application. Translation of this data in vectors and plotting the resulting curves is done by selecting <em>Update from text</em> in <em>File</em> menu.</p></li>
 </ul>
 <h2 id="reading-spectra-in-jcamp-dx-format">Reading spectra in JCAMP-DX format</h2>
-<p>pyDataVis can automatically decode and plot the files containing infrared spectra and mass spectra in <a href="http://www.jcamp-dx.org/protocols.html">JCAMP-DX format</a>. This format is used in <a href="https://webbook.nist.gov/chemistry/">NIST Chemistry WebBook</a> database. pyDataVis also recognizes the Raman data file from the <a href="https://rruff.info/">RRUFF</a> database.</p>
+<p>pyDataVis can automatically decode and plot the files containing IR, mass or NMR spectra in <a href="http://www.jcamp-dx.org/protocols.html">JCAMP-DX format</a>. This format is used for example in <a href="https://webbook.nist.gov/chemistry/">NIST Chemistry WebBook</a> or <a href="http://www.chemspider.com/">ChemSpider</a> databases. pyDataVis also recognizes the Raman data file format from the <a href="https://rruff.info/">RRUFF</a> database.</p>
 <h2 id="append">Append</h2>
 <p>The <em>Append</em> option in the <em>File</em> menu is used to append data from another file at the end of the current data. The added file must contain only one data block and the number of vectors must be the same as the current data block.</p>
 <h2 id="importing-data">Importing data</h2>
@@ -321,11 +322,11 @@ sudo dpkg -i pyDataVis.deb</code></pre>
 <p>The first vector [0,1,2,3] will be named <em>Time</em> and the second one [0,5,15,30] <em>Intensity</em>.</p>
 <p>The number of items in the line containing the vector names must match the number of columns. Therefore a vector name cannot contains space because the space character is regarded as a separator (underscore can be used instead).</p>
 <p>In the absence of a line containing the vector names, the vectors are named automatically as V1B1, V2B1, … where the B1 ending indicates that these vectors belong to the first data block. Thus if the file contains a second data block the vectors belonging to this block will be named V1B2, V2B2, …</p>
-<p>If no plot command is found in the file header, the first column (V1B1) is assumed to contain X values. Thus, if the file contains three columns (vectors), V1B1, V2B1 and V3B1, two curves will be plotted automatically, V2B1 against V1B1 and V3B2 against V1B1.</p>
+<p>If no plot command is found in the file header, the first column (V1B1) is assumed to contain X values. Thus, if the file contains three columns (vectors), V1B1, V2B1 and V3B1, two curves will be automatically plotted, V2B1 against V1B1 and V3B2 against V1B1.</p>
 <p>Several pyDataVis windows can be opened at the same time and curves exchanged between them using the options of the <em>Curve</em> menu or keyboard shortcuts.</p>
 <h2 id="curves">Curves</h2>
 <p>A curve consists of a set of two vectors (X and Y). Thanks to the <em>Curves</em> menu, the curves can be deleted, duplicated or copied. A curve copied in a pyDataVis window cannot be pasted in the same window because two curves cannot share the same name. If the curve is pasted in a window containing a vector having the same name, the original name is suffixed with the ’‘#’’ character. It is the same when a curve is duplicated,</p>
-<p>When a X,Y curve is pasted into another window, if the same X-vector already exists in a data block there are two possibilities, either to add the Y-vector at the end of the data block or to create a new data block to store the X and Y vectors. This is left to the choice of the user.</p>
+<p>When a X,Y curve is pasted into another window, if the same X-vector already exists in a data block, there are two possibilities, either to add the Y-vector at the end of the data block or to create a new data block to store the X and Y vectors. This is left to the user’s choice.</p>
 <p>The <em>Save in file</em> option allows for saving a given curve in a new file.</p>
 <h2 id="cursor-and-marks">Cursor and marks</h2>
 <p>When a curve is displayed on plotting area, right clicking with the mouse in this area triggers a light brown crosshair cursor. The point number (no) and coordinates (xc, yc) at the cursor position are shown in the status bar at the bottom of the pyDataVis window.</p>
@@ -410,7 +411,7 @@ sudo dpkg -i pyDataVis.deb</code></pre>
 <h2 id="smoothing">Smoothing</h2>
 <p>Smoothing is a very powerful technique used all across data analysis. It consists of removing random variation (noise) while preserving the original shape and features of the signal. With <em>pyDataVis</em> you can choose several techniques to achieve the best result according to the kind of data.</p>
 <p>With the <strong>Smoothing</strong> option of the <em>Tools</em> menu two kinds of filter are proposed: the <em>Moving average</em> and the <em>Savitzky-Golay</em>.</p>
-<p>The <a href="https://en.wikipedia.org/wiki/Moving_average"><strong>Moving average</strong></a> filter operates by averaging ‘n’ points from the input data to produce each point in the output data, where n is an odd integer. The figure 4 shows the smoothing window when the Moving average filter is selected. Three curves are plotted. The grey curve corresponds to the original data, the blue curve to the filtered data and the green curve shows the difference between original and filtered. The goal is that this curve shows only noise.</p>
+<p>The <a href="https://en.wikipedia.org/wiki/Moving_average"><strong>Moving average</strong></a> filter operates by averaging ‘n’ points from the input data to produce each point in the output data, where n is an odd integer. The figure 5 shows the smoothing window when the Moving average filter is selected. Three curves are plotted. The grey curve corresponds to the original data, the blue curve to the filtered data and the green curve shows the difference between original and filtered. The goal is that this curve shows only noise.</p>
 <figure>
 <img src="img/Smoothing.png" width="500" alt="Figure 5 - The smoothing tool" /><figcaption aria-hidden="true">Figure 5 - The smoothing tool</figcaption>
 </figure>
@@ -525,7 +526,7 @@ sudo dpkg -i pyDataVis.deb</code></pre>
 <li>Cubic spine, the curve is build by cubic spine interpolation between the points.</li>
 </ul>
 <p>Once a method is chosen, it is not possible to change it. If you click on <em>Correct</em> button the baseline is subtracted from the original data. If you click on <em>Add BL</em> button, this does not change the data but a new vector containing the baseline is added to the data block.</p>
-<p>If the signal is noisy it is recommended to remove the noise prior to the baseline correction.</p>
+<p>If the signal is too noisy it is recommended to remove the noise prior to the baseline correction (see <a href="#remove-noise">Remove noise tool</a>).</p>
 <figure>
 <img src="img/baseline.png" width="500" alt="Figure 17 - Baseline correction tool" /><figcaption aria-hidden="true">Figure 17 - Baseline correction tool</figcaption>
 </figure>
@@ -545,7 +546,7 @@ sudo dpkg -i pyDataVis.deb</code></pre>
 </figure>
 <h1 id="script-commands">Script commands</h1>
 <p>In pyDataVis, script commands are used for plotting and to do most of the data processing. Beware that the command names, the vector names and the parameters are case sensitive. Several script commands can be chained together. The script commands are written in the <em>Script window</em> and executed by typing Ctrl+E or by selecting the option <em>Execute a script</em> in the Script menu. Empty lines and lines starting with # are ignored during execution. The script can be executed repeatedly by retyping Ctrl+E as often as desired. If an error occurs during the execution of a script sequence, the process is stopped at the faulty line; the remaining commands are not executed.</p>
-<p>Before a script was executed the current data is saved in memory. If something wrong happens during execution the previous state can be restored by selecting the <em>Undo</em> option in the <em>Script</em> menu.</p>
+<p>Before a script was executed, the current data is saved in memory. If something wrong happens during execution the previous state can be restored by selecting the <em>Undo</em> option in the <em>Script</em> menu.</p>
 <p>The key sequence <em>Ctrl+K</em> clears the text in the <em>Script window</em> and gives it the focus so a new script can be written without having to click in this window.</p>
 <p>It is possible to save the content of the <em>Script window</em> to a file by selecting the option <em>Save script</em> in the <em>Script</em> menu. Conversely a script previously saved to a file can be loaded in the <em>Script window</em> by selecting the option <em>Load script</em>. The figure 20 shows a pyDataVis window after creation of a new file and execution of the following script:</p>
 <pre><code>newv X 0,6.3,0.1
@@ -571,6 +572,10 @@ labY2 Volume</code></pre>
 <pre><code>symbol Y
 no symbol Y</code></pre>
 <p>The first will plot symbols for the curve Y whereas the second will use line type. Like the color, the symbol shape is chosen automatically, however it can be temporarily modified with the axis/curve style editor in <a href="#matplotlib-toolbar">Matplotlib toolbar</a>.</p>
+<p>You can flip the order of the axis limits thanks to the following commands:</p>
+<pre><code>invertx
+inverty</code></pre>
+<p>These commands works like switches. They are not saved when the file is closed.</p>
 <p>It is possible to add text. The following command writes ‘Title’ at x,y position, using a red font with size 14:</p>
 <pre><code>text x,y,Title,red,14</code></pre>
 <p>The text position is relative to x-axis and primary y-axis. The fourth parameter ‘red’ indicates that the text color is red. The color names are:</p>
@@ -737,10 +742,14 @@ plot X,S</code></pre>
 <p>This command reduces the number of elements in a vector. It takes two parameters, the vector name and the reducing factor which must be in the range 2-10. This operation implies to reduce the number of elements of all the other vectors in the data block. For example, the command:</p>
 <pre><code>shrink V 4</code></pre>
 <p>reduces in the number of elements in V by a factor 4.</p>
-<h3 id="revert">revert</h3>
+<h3 id="revertv">revertv</h3>
 <p>This command:</p>
-<pre><code>revert V</code></pre>
-<p>will revert the order of elements in V. It takes only one parameter, the vector name. All the vectors belonging to the same data block will have their elements reverted as well.</p>
+<pre><code>revertv V</code></pre>
+<p>will revert the order of elements in V. It takes only one parameter, the vector name.</p>
+<h3 id="revertb">revertb</h3>
+<p>This command:</p>
+<pre><code>revertb 1</code></pre>
+<p>will revert the order of all the elements in a data block. It takes only one parameter, the data block number.</p>
 <h3 id="sort">sort</h3>
 <p>This command:</p>
 <pre><code>sort V</code></pre>
@@ -844,6 +853,8 @@ plt.show()</code></pre>
 <li><strong>fft</strong> V : Compute the Discrete Fast Fourier Transform of V.</li>
 <li><strong>IRabs</strong> : Convert an IR spectrum in absorbance.</li>
 <li><strong>IRtrans</strong> : Convert an IR spectrum in transmittance.</li>
+<li><strong>invertx</strong> : Flipping the order of the X axis limits.</li>
+<li><strong>inverty</strong> : Flipping the order of the Y axis limits.</li>
 <li><strong>labY1</strong> Rate (rpm) : Display ‘Rate (rpm)’ as label of Y1 axis.</li>
 <li><strong>labY2</strong> Intensity : Display ‘Intensity’ as label of Y2 axis.</li>
 <li><strong>labX</strong> Time (s) : Display ‘Time (s)’ as label of X axis.</li>
@@ -857,7 +868,8 @@ plt.show()</code></pre>
 <li><strong>onset</strong> V : Determine the onset of a peak. Both markers are used to indicate the baseline and the approximate place of the inflection.</li>
 <li><strong>plot</strong> X,Y : Plot Y against X. Each curve require a separate plot command.</li>
 <li><strong>plot</strong> X,Y,2 : Plot Y against X using a secondary Y axis.</li>
-<li><strong>revert</strong> V : Revert the order of elements in V.</li>
+<li><strong>revertb</strong> 1 : Revert the order of all the vector elements in the data block 1.</li>
+<li><strong>revertv</strong> V : Revert the order of elements in the vector V.</li>
 <li><strong>shift</strong> Y v: Add the value v to the portion of Y curve delimited by the markers.</li>
 <li><strong>shrink</strong> V n : Reduce in the number of elements in V by a factor n.</li>
 <li><strong>sort</strong> V : Sort the elements of the vector V in ascending order.</li>

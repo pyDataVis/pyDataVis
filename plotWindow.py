@@ -14,7 +14,6 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
 
-
 from utils import (isNumber, isNumeric, isNumData)
 from utils import (textToData, dataToFile, JcampDX, arrayToString)
 
@@ -228,7 +227,7 @@ class plotWin(QtWidgets.QDialog):
         if filename is None:
             while True:
                 filename = str("Unnamed-{0}.txt".format(plotWin.newcpt))
-                filename = "{0}/{1}".format(self.parent.progpath, filename)
+                filename = os.path.join(filename, self.parent.progpath)
                 if self.parent.isAlreadyOpen(filename):
                     plotWin.newcpt += 1
                 else:
@@ -236,6 +235,7 @@ class plotWin(QtWidgets.QDialog):
             plotWin.newcpt += 1
         self.filename = filename
         self.dirty = False
+        self.colsep = None      # Column separator
         self.vectInfolst = []   # list of list of vectInfo object
         self.curvelist = []     # List of curves (curveInfo object)
         self.blklst = None      # List of numpy array containing the data blocks
@@ -401,7 +401,8 @@ class plotWin(QtWidgets.QDialog):
                         QtWidgets.QMessageBox.Cancel |
                         QtWidgets.QMessageBox.NoButton |
                         QtWidgets.QMessageBox.NoButton)
-        self.parent.numpltw -= 1
+        if self.parent.numpltw > 0:
+            self.parent.numpltw -= 1
         self.parent.updateUI()
 
 
@@ -474,7 +475,7 @@ class plotWin(QtWidgets.QDialog):
 
         :param filename: name of the text file
         :return: A tuple with an error message and a string.
-        if no error the error message = "".
+                 If no error, the error message = "" else the string is None.
         """
         errmsg = ""
         try:
@@ -496,7 +497,7 @@ class plotWin(QtWidgets.QDialog):
                 errmsg = "Empty file"
         if errmsg:
            ftext = None
-        return (errmsg, ftext)
+        return errmsg, ftext
 
 
 
@@ -548,6 +549,7 @@ class plotWin(QtWidgets.QDialog):
                 try:
                     for blk in blocks:
                         (self.nvect, self.nelem) = np.shape(np.array(blk))
+                        self.colsep = sep
                 except ValueError:
                      errmsg = "Cannot decode the text data"
 
@@ -584,7 +586,7 @@ class plotWin(QtWidgets.QDialog):
         # Initialize self.vectInfolst from data blocks
         self.initVectInfoList()
         self.curvelist = []
-        datatyp = 'unknown'
+        self.datatyp = 'unknown'
         errmsg = ""
 
         # Look for plots commands in the header
@@ -601,25 +603,37 @@ class plotWin(QtWidgets.QDialog):
                     cmdlist.append(header)
                 elif header.startswith('#arrow ') or header.startswith('# arrow '):
                     cmdlist.append(header)
-                elif header.startswith("##DATA TYPE=MASS SPECTRUM"):
-                    datatyp = 'MS'
-                    self.labx = self.vectInfolst[0][0].name = "Mass"
-                    self.laby1 = self.vectInfolst[0][1].name = "Intensity"
-                elif header.startswith("##DATA TYPE=INFRARED SPECTRUM"):
-                    datatyp = 'line'
-                    self.labx = self.vectInfolst[0][0].name = "Wavenumber (/cm)"
-                elif header.startswith("##YUNITS=TRANSMITTANCE"):
-                    self.laby1 = self.vectInfolst[0][1].name = "Transmittance"
-                elif header.startswith("##YUNITS=ABSORBANCE"):
-                    self.laby1 = self.vectInfolst[0][1].name = "Absorbance"
+                elif header.startswith("##DATA TYPE="):
+                    if header.find("MASS SPECTRUM") != -1:
+                        self.datatyp = 'MS'
+                        self.labx = self.vectInfolst[0][0].name = "Mass"
+                        self.laby1 = self.vectInfolst[0][1].name = "Intensity"
+                    elif header.find("INFRARED SPECTRUM") != -1:
+                        self.datatyp = 'IR'
+                        self.labx = self.vectInfolst[0][0].name = "Wavenumber (/cm)"
+                    elif header.find("NMR SPECTRUM") != -1:
+                        self.datatyp = 'NMR'
+                        self.laby1 = self.vectInfolst[0][1].name = "I"
+                elif header.startswith("##XUNITS="):
+                    if self.datatyp == 'NMR':
+                        datatyp = 'line'
+                        xlab = header.split('=')[1].strip()
+                        self.labx = self.vectInfolst[0][0].name = xlab
+                elif header.startswith("##YUNITS="):
+                    if header.find("TRANSMITTANCE") != -1:
+                        self.laby1 = self.vectInfolst[0][1].name = "Transmittance"
+                    if header.find("ABSORBANCE") != -1:
+                        self.laby1 = self.vectInfolst[0][1].name = "Absorbance"
                 elif header.startswith("##RRUFFID=R"):
-                    datatyp = 'line'
+                    self.datatyp = 'Raman'
                     self.vectInfolst[0][0].name = "Raman_Shift"
                     self.labx = "Raman Shift (/cm)"
                     self.laby1 = self.vectInfolst[0][1].name = "Intensity"
             if cmdlist:
                 for cmd in cmdlist:
-                    self.plotCmdToCurve(cmd)
+                    errmsg = self.plotCmdToCurve(cmd)
+                    if errmsg != "":
+                        return errmsg
 
         if self.curvelist:
             # check that vector names match curve names
@@ -642,11 +656,14 @@ class plotWin(QtWidgets.QDialog):
                             curvinfo.symbol = True
                         self.curvelist.append(curvinfo)
 
-            if self.curvelist == [] and self.vectInfolst == []:
+            if self.vectInfolst == []:
                 errmsg = "Cannot decode the text data"
             else:
-                if datatyp == 'MS':
-                    self.curvelist[0].plottyp = 'bar'
+                if self.curvelist != []:
+                    if self.datatyp == 'MS':
+                        self.curvelist[0].plottyp = 'bar'
+                    else:
+                        self.curvelist[0].plottyp = 'line'
         return errmsg
 
 
@@ -739,8 +756,10 @@ class plotWin(QtWidgets.QDialog):
                         # Do not add plot commands
                         if line.startswith("#plot") or line.startswith("#lab"):
                             break
-                        else:
-                            header += line + '\n'
+                        if self.datatyp != 'unknown' and line.startswith("##"):
+                            # Remove the first # to avoid confusion with JCAMP-DX file
+                            line = line[1:]
+                        header += line + '\n'
 
                 # insert the plot command
                 cmdlst = self.curveToPlotCmd(self.curvelist)
@@ -749,19 +768,19 @@ class plotWin(QtWidgets.QDialog):
                     header += '#'+ cmd + '\n'
                 # insert the plot commands
                 if self.labx is not None:
-                    header += '#labX'+ self.labx + '\n'
+                    header += "#labX {0}\n".format(self.labx.strip())
                 if self.laby1 is not None:
-                    header += '#labY1'+ self.laby1 + '\n'
+                    header += "#labY1 {0}\n".format(self.laby1.strip())
                 if self.laby2 is not None:
-                    header += '#labY2'+ self.laby2 + '\n'
+                    header += "#labY2 {0}\n".format(self.laby2.strip())
                 if self.logX or self.logY:
                     header += '#logaxis {0},{1}\n'.format(int(self.logX), int(self.logY))
                 if self.arrows:
                     for arrowprm in self.arrows:
-                        header += '#arrow'+ arrowprm + '\n'
+                        header += "#arrow {0}\n".format(arrowprm)
                 if self.plottext:
                     for txtprm in self.plottext:
-                        header += '#text'+ txtprm + '\n'
+                        header += "#text {0}\n".format(txtprm)
                 if cmdlst is not None:
                     header += '#\n'
 
@@ -846,12 +865,16 @@ class plotWin(QtWidgets.QDialog):
             if vnam.startswith('#'):
                 # remove the # at the beginning
                 vnam = vnam[1:]
-            vlst = list(vnam.split())
+            if self.colsep is not None:
+                vlst = list(vnam.split(self.colsep))
+            else:
+                vlst = list(vnam.split())
             if vlst:
                 if len(vlst) == nvect:
                     # Correct the names containing unauthorized characters
                     charlst = list(' (),;:=-+*/')
                     for i, vnam in enumerate(vlst):
+                        vnam = vnam.strip()
                         for c in charlst:
                             if c in vnam:
                                 items = vnam.split(c, 1)
@@ -1267,7 +1290,7 @@ class plotWin(QtWidgets.QDialog):
             This function is the symmetric of curveToPlotCmd.
 
         :param cmd: a string containing the plot command.
-        :return: the curveinfo object or None in case of error.
+        :return: an error message (="" if no error).
         """
         errmsg = ""
         # remove # for plot command coming from file
@@ -1280,11 +1303,11 @@ class plotWin(QtWidgets.QDialog):
             params = cmd[3:]
             items = params.split(' ')
             if items[0] == 'X':
-                self.labx = params[1:]
+                self.labx = params[1:].strip()
             elif items[0] == 'Y1':
-                self.laby1 = params[2:]
+                self.laby1 = params[2:].strip()
             elif items[0] == 'Y2':
-                self.laby2 = params[2:]
+                self.laby2 = params[2:].strip()
 
         elif cmd.startswith('plot'):
             params = cmd[5:]
@@ -1344,6 +1367,7 @@ class plotWin(QtWidgets.QDialog):
                                         QtWidgets.QMessageBox.Cancel |
                                         QtWidgets.QMessageBox.NoButton |
                                         QtWidgets.QMessageBox.NoButton)
+        return errmsg
 
 
 

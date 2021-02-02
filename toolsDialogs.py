@@ -3,7 +3,7 @@
 from PyQt5.QtCore import Qt, QRegExp
 from PyQt5 import QtGui, QtWidgets
 
-import datetime
+import os, datetime
 import numpy as np
 from operator import itemgetter
 from scipy.optimize import least_squares
@@ -1098,7 +1098,7 @@ class fitCurveDlg(QtWidgets.QDialog):
         :param msg: string containing the message 'msg'.
         :return: nothing
         """
-        path = "{0}/logfile.txt".format(self.parent.progpath)
+        path = os.path.join(self.parent.progpath, "logfile.txt")
         fo = open(path, 'a')
         # prefix with current date and time from now variable
         msg = "\n#{0}\n".format(datetime.datetime.now()) + msg
@@ -1775,7 +1775,7 @@ class pkFitDlg(QtWidgets.QDialog):
         :param msg: A string containing the message
         :return: nothing
         """
-        path = "{0}/logfile.txt".format(self.parent.progpath)
+        path = os.path.join(self.parent.progpath, "logfile.txt")
         fo = open(path, 'a')
         # prefix with current date and time from now variable
         msg = "\n#{0}\n".format(datetime.datetime.now()) + msg
@@ -1840,7 +1840,6 @@ class pkFitDlg(QtWidgets.QDialog):
         vnames.append(self.pltw.vectInfolst[self.blkno][1].name)
         vnames.append("pksum")
 
-        savename = "peakFit.txt"
         txt = "Number of peaks = {0}\n".format(self.npeaks)
         txt += "Fitting results:\n"
         txt += "pktyp\t xm\t amp\t width\t area\n"
@@ -1880,6 +1879,7 @@ class pkFitDlg(QtWidgets.QDialog):
         # Save data and peaks in a text file
         stnam = "\n{0}".format("\t".join(vnames))
         txt += stnam
+        savename = os.path.join(self.parent.progpath, "peakfit.txt")
         np.savetxt(savename, np.transpose(newset), fmt='%+1.4E', header=txt)
         # load the converted file
         self.parent.loadFile(savename)
