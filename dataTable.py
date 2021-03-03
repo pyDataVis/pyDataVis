@@ -7,6 +7,28 @@ import numpy as np
 
 from utils import isNumber
 
+
+# tableDlg class ---------------------------------------------------------
+
+class tableDlg(QtWidgets.QDialog):
+    def __init__(self, parent):
+        super(tableDlg, self).__init__(parent)
+
+        self.pltw = parent
+        self.table = dataTable(self.pltw, self)
+
+        # set the layout
+        vbox = QtWidgets.QVBoxLayout()
+        vbox.addWidget(self.table)
+        self.setLayout(vbox)
+        self.table.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
+        self.setWindowTitle(QFileInfo(self.pltw.filename).fileName())
+        self.table.initTable()
+
+    def closeEvent(self, event):
+        self.pltw.tabledlg = None
+
+
 # - dataTable class ------------------------------------------------------------
 
 class dataTable(QtWidgets.QTableWidget):
@@ -105,25 +127,3 @@ class dataTable(QtWidgets.QTableWidget):
             item = self.item(self.currentRow, self.ypos)
             self.setCurrentItem(item)
             self.scrollToItem(item)
-
-
-# tableDlg --------------------------------------------------------------
-
-class tableDlg(QtWidgets.QDialog):
-    def __init__(self, parent):
-        super (tableDlg, self).__init__(parent)
-
-        self.pltw = parent
-        self.table = dataTable(self.pltw, self)
-
-        # set the layout
-        vbox = QtWidgets.QVBoxLayout()
-        vbox.addWidget(self.table)
-        self.setLayout(vbox)
-        self.table.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
-        self.setWindowTitle(QFileInfo(self.pltw.filename).fileName())
-        self.table.initTable()
-
-
-    def closeEvent(self, event):
-        self.pltw.tabledlg = None

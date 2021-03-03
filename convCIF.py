@@ -7,6 +7,7 @@ import numpy as np
 from utils import isNumeric, isNotNumeric, listToArray, dataToFile
 
 
+
 def CIF(flines, savename):
     """ Generate a simulated XRD pattern from the CIF data in 'flines'.
 

@@ -1,6 +1,6 @@
 """ This module contains the Dialogs for interactive Tools menu
 """
-from PyQt5.QtCore import Qt, QRegExp
+from PyQt5.QtCore import Qt, QRegExp, QTimer
 from PyQt5 import QtGui, QtWidgets
 
 import os, datetime
@@ -14,10 +14,9 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
 
-from utils import (isNumber, calcArea, round_to_n, getSpan, MovAver)
 from plotWindow import vectInfo, curveInfo
-
-
+from utils import (isNumber, calcArea, round_to_n, getSpan,
+                                 MovAver, rms)
 
 # smoothDlg ------------------------------------------------------------
 
@@ -136,6 +135,11 @@ class smoothDlg(QtWidgets.QDialog):
         self.orderSpinBox.setValue(self.order)
         self.nbpassSpinBox.setValue(self.npass)
         self.compute()
+        QTimer.singleShot(5000, self.istest)
+
+    def istest(self):
+        if self.parent.test:
+            self.close()
 
 
     def changeOrder(self):
@@ -295,6 +299,12 @@ class splinSmoothDlg(QtWidgets.QDialog):
         cancelBtn.clicked.connect(self.reject)
         self.setWindowTitle('Spline Smoothing tool')
         self.initDlg(cpos)
+        QTimer.singleShot(5000, self.istest)
+
+
+    def istest(self):
+        if self.parent.test:
+            self.close()
 
 
     def initDlg(self, cpos):
@@ -323,7 +333,7 @@ class splinSmoothDlg(QtWidgets.QDialog):
             self.data[1] = self.data[1][::-1]
 
         self.k = 3
-        self.s = 1.0
+        self.s = round_to_n(rms(self.data[1]), 1)
         self.diffshift = getSpan(self.data[1]) * 0.2
         if self.data[1].min() + self.diffshift < 0.0:
             self.diffshift *= -1.0
@@ -492,6 +502,12 @@ class ALS_SmoothDlg(QtWidgets.QDialog):
 
         self.initWidgets()
         self.compute()
+        QTimer.singleShot(4000, self.istest)
+
+
+    def istest(self):
+        if self.parent.test:
+            self.close()
 
 
     def initWidgets(self):
@@ -706,6 +722,12 @@ class fitCurveDlg(QtWidgets.QDialog):
 
         self.updateParms()
         self.compute()
+        QTimer.singleShot(5000, self.istest)
+
+
+    def istest(self):
+        if self.parent.test:
+            self.close()
 
 
     def initParms(self):
@@ -1418,7 +1440,11 @@ class pkFitDlg(QtWidgets.QDialog):
 
         self.updateParmsEdit()
         self.compute()
+        QTimer.singleShot(5000, self.istest)
 
+    def istest(self):
+        if self.parent.test:
+            self.close()
 
     def createLayout(self):
         """ Create the layout of the Peak Fitting dialog.
@@ -1483,8 +1509,6 @@ class pkFitDlg(QtWidgets.QDialog):
                     if p == 0:
                         if not val in ['G', 'L', 'P', 'AG', 'AL', 'AP']:
                             err = "Unknown peak type"
-                        else:
-                            pktyp = val
                     else:
                         if not isNumber(val):
                             err = "Parameter {0} in not numeric".format(p+1)
@@ -1843,8 +1867,8 @@ class pkFitDlg(QtWidgets.QDialog):
         txt = "Number of peaks = {0}\n".format(self.npeaks)
         txt += "Fitting results:\n"
         txt += "pktyp\t xm\t amp\t width\t area\n"
-
-        newset = np.vstack((self.pltw.blklst[self.blkno], self.data[2]))
+        # Remove the vector difference at the end
+        newset = self.data[:-1]
         for i in range(0, len(self.parmVal), self.maxparm):
             pkno = int(i/self.maxparm)
             ptyp = self.peakTyp[pkno]
@@ -1880,7 +1904,7 @@ class pkFitDlg(QtWidgets.QDialog):
         stnam = "\n{0}".format("\t".join(vnames))
         txt += stnam
         savename = os.path.join(self.parent.progpath, "peakfit.txt")
-        np.savetxt(savename, np.transpose(newset), fmt='%+1.4E', header=txt)
+        np.savetxt(savename, np.transpose(newset), fmt='%+1.4E', delimiter='\t', header=txt)
         # load the converted file
         self.parent.loadFile(savename)
         self.hide()
@@ -1926,7 +1950,7 @@ class interpolDlg(QtWidgets.QDialog):
         self.blknoSpinBox.setMinimum(1)
         # dx
         dxlab = QtWidgets.QLabel(parmlist[1][0])
-        str = "{0:g}".format(parmlist[1][1])
+        str = "{0:g}".format(self.dx)
         self.dxtext = QtWidgets.QLineEdit(str)
         regex = QRegExp("[0-9]+.?[0-9]{,6}")
         validator = QtGui.QRegExpValidator(regex, self.dxtext)
@@ -1998,6 +2022,11 @@ class interpolDlg(QtWidgets.QDialog):
         # Init widgets
         self.blknoSpinBox.setValue(parmlist[0][1])
         self.compute()
+        QTimer.singleShot(5000, self.istest)
+
+    def istest(self):
+        if self.parent.test:
+            self.close()
 
 
     def initDataParms(self):
@@ -2012,6 +2041,8 @@ class interpolDlg(QtWidgets.QDialog):
         self.xmin = (self.data[self.xpos]).min()
         self.xmax = (self.data[self.xpos]).max()
         self.xspan = self.xmax - self.xmin
+        if self.parent.test:
+            self.dx = self.xspan / (self.npt * 5)
 
 
     def updateCurveList(self):
@@ -2188,6 +2219,21 @@ class baselineDlg(QtWidgets.QDialog):
         self.setWindowTitle('Baseline correction tool')
         self.axes.plot(self.data[0], self.data[1], linestyle='-', color='blue')
         self.canvas.draw()
+        if parent.test:
+            self.baslin = [(1.36, 38.00, 90),
+                           (4.72, 36.80, 314),
+                           (11.64, 95.87, 775),
+                           (21.93, 524.56, 1461)]
+            self.Xpt = list(t[0] for t in self.baslin)
+            self.Ypt = list(t[1] for t in self.baslin)
+            self.BLplt, = self.axes.plot(self.Xpt, self.Ypt, marker='*', color='red', linestyle='None')
+            self.baslinCalc()
+            self.updatePlot()
+        QTimer.singleShot(5000, self.istest)
+
+    def istest(self):
+        if self.parent.test:
+            self.close()
 
 
     def changeBLTyp(self):
@@ -2361,7 +2407,7 @@ class baselineDlg(QtWidgets.QDialog):
 
 
     def subtract(self):
-        """ Callback function when user has clicked on OK button.
+        """ Callback function when user has clicked on Correct button.
 
             The baseline vector is subtracted from the original data vector.
 
@@ -2449,6 +2495,11 @@ class noiseDlg(QtWidgets.QDialog):
 
         self.initWidgets()
         self.compute()
+        QTimer.singleShot(5000, self.istest)
+
+    def istest(self):
+        if self.parent.test:
+            self.close()
 
 
     def initWidgets(self):
@@ -2557,6 +2608,11 @@ class deNoiseDlg(QtWidgets.QDialog):
 
         self.dataSpan = getSpan(self.data[1])
         self.compute()
+        QTimer.singleShot(5000, self.istest)
+
+    def istest(self):
+        if self.parent.test:
+            self.close()
 
 
     def updatePlot(self):

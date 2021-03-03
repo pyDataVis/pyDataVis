@@ -1,6 +1,6 @@
 # General purpose functions
 #
-import os
+import os, shutil
 import csv
 import math
 from datetime import date
@@ -164,6 +164,83 @@ def cpyFromURL(url, filename):
     except IOError as err:
         return False
     return True
+
+
+def getDataFromUrl(url, destdir):
+    """  Copy GitHub data from 'url' in 'destdir' folder
+
+        :param url: the GitHub URL.
+        :return: an error message (= "" if no error)
+    """
+    # Check internet connection
+    if not checkWeb():
+        return "No internet connection"
+    # Clone url
+    tmppath = os.path.join(destdir, "tmp")
+    if not os.path.exists(tmppath):
+        # the tmp folder does not exist, create it
+        os.makedirs(tmppath)
+    os.chdir(tmppath)
+
+    zippath = os.path.join(tmppath, "main.zip")
+    if checkURL(url):
+        cpyFromURL(url, zippath)
+    else:
+        return "Invalid URL: {0}".format(url)
+    # check if the main.zip file has been created
+    if not os.path.exists(zippath):
+        return "Fail to get data archive from GitHub"
+
+    shutil.unpack_archive(zippath)
+    copydir = os.path.join(tmppath, "pyDataVis-main")
+    errmsg = ""
+    dirlst = os.listdir(copydir)
+    # Copy data folders
+    files = [f for f in dirlst if f != '.']
+    for f in files:
+        try:
+            src = os.path.join(copydir, f)
+            dest = os.path.join(destdir, f)
+            if not os.path.exists(dest):
+                if os.path.isdir(src):
+                    shutil.copytree(src, dest)
+                else:
+                    shutil.copyfile(src, dest)
+        except IOError as err:
+            errmsg = "Fail to copy folder {0}: {1}".format(dest, err)
+            break
+
+    # Delete the tmp folder
+    shutil.rmtree(copydir)
+    return errmsg
+
+
+def copyFiles(srcdir, destdir):
+    """ Copy all the files in 'scrdir' folder in 'destdir'.
+
+        If 'destdir' does not exist, create it.
+
+    :param srcdir: source directory
+    :param destdir: destination directory
+    :return: an error message (= "" if no error).
+    """
+    if not os.path.exists(srcdir):
+        return "Folder {0} does not exist".format(srcdir)
+    if not os.path.exists(destdir):
+        os.makedirs(destdir)
+    msg = ""
+    dirlst = os.listdir(srcdir)
+    for f in dirlst:
+        try:
+            src = os.path.join(srcdir, f)
+            dest = os.path.join(destdir, f)
+            if os.path.isfile(src):
+                shutil.copyfile(src, dest)
+        except IOError as err:
+            msg = "Fail to copy file {0}: {1}".format(f, err)
+    return msg
+
+
 
 
 

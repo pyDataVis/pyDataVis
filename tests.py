@@ -1,21 +1,18 @@
 import os
 from time import sleep
-import numpy as np
 from PyQt5 import QtGui, QtWidgets
 
-from plotWindow import dCursor, lineSeg
-from script import calculArea, clipdn, clipup, clipx, delDupX, despike, fft
-from script import line, linEq, lineFit, mergeb, name, ndec, newV, onset
-from script import revertb, revertv, shift, shrink, sort, stats, swapv
-from utils import textToData
-from convIso import processBET, PSDcalc
+from plotWindow import dCursor
+from utils import isNumber, textToData
 from convCIF import CIF
-from convert import convDAT, convPRF, convertShape, transpose, convert2D
-from convert import convertToAbs, convertToTrans
+from convert import (convDAT, convPRF, convertShape, transpose, convert2D)
+from script import script
 
 # - testDlg class ------------------------------------------------------------
 
 class testDlg(QtWidgets.QDialog):
+    numgroup = 5
+
     def __init__(self, parent=None, group=None):
         """ Test dialog.
 
@@ -30,15 +27,23 @@ class testDlg(QtWidgets.QDialog):
         infolab = QtWidgets.QLabel(info)
         self.testComboBox = QtWidgets.QComboBox(self)
         self.testlist = ["All tests"]
-        if group == "script":
+        if group == "curve":
+            self.setWindowTitle('Tests of curve manipulation')
+            self.testlist.extend(curvtstnam)
+        elif group == "script":
             self.setWindowTitle('Tests of script commands')
             self.testlist.extend(sctstnam)
-        if group == "IO":
+        elif group == "IO":
             self.setWindowTitle('Tests of Input/Output')
             self.testlist.extend(iotstnam)
-        if group == "Convert":
-            self.setWindowTitle('Tests of convert options')
+        elif group == "Convert":
+            self.setWindowTitle('Tests of Convert options')
             self.testlist.extend(convtstnam)
+        elif group == "Tools":
+            self.setWindowTitle('Tests of Tools options')
+            self.testlist.extend(toolststnam)
+        else:
+            assert False, ("Unknown group")
         self.testComboBox.addItems(self.testlist)
         # Buttons
         okBtn = QtWidgets.QPushButton("OK")
@@ -84,38 +89,53 @@ def wait(tim, mainw):
 
 
 def runTests(mainw, sel):
-    """ Run the self tests
+    """ Run the self tests of the group corresponding to 'sel'.
 
-    :param mainw:
-    :return: Nothing
+    :param mainw: the application MainWindow
+    :param sel: the selected group
+    :return: a tuple of strings with the title and the result of the tests.
     """
-    if sel == "Run script tests":
+    if sel == "Run curve tests" or sel == 0:
+        group = "curve"
+        tstfunc = curvtstfunc
+        tstnam = curvtstnam
+        title = "Curve Tests results"
+    elif sel == "Run script tests" or sel == 1:
         group = "script"
         tstfunc = sctstfunc
         tstnam = sctstnam
         title = "Script Tests results"
-    elif sel == "Run I/O tests":
+    elif sel == "Run I/O tests" or sel == 2:
         group = "IO"
         tstfunc = iotstfunc
         tstnam = iotstnam
         title = "Input/Output Tests results"
-    elif sel == "Run convert tests":
+    elif sel == "Run Convert tests" or sel == 3:
         group = "Convert"
         tstfunc = convtstfunc
         tstnam = convtstnam
         title = "Convert Tests results"
+    elif sel == "Run Tools tests" or sel == 4:
+        group = "Tools"
+        tstfunc = toolststfunc
+        tstnam = toolststnam
+        title = "Tools Tests results"
     else:
-        return
-    dlg = testDlg(mainw, group)
-    dlg.setModal(True)
-    ret = dlg.exec_()
-    if not ret:
-        return
+        assert False, ("Unknown selection")
+    if isNumber(sel):
+        pos = 0
+    else:
+        dlg = testDlg(mainw, group)
+        dlg.setModal(True)
+        ret = dlg.exec_()
+        if not ret:
+            return
+        pos = dlg.testComboBox.currentIndex()
 
     mainw.keyb = None
-    pos = dlg.testComboBox.currentIndex()
+    results = ""
     if pos == 0:
-        # run all tests
+        # run all tests in the group
         result = []
         for i, func in enumerate(tstfunc):
             err, msg = func(mainw)
@@ -126,7 +146,9 @@ def runTests(mainw, sel):
                 res = "passed"
             else:
                 res = "failed\n{0}".format(msg)
-            result.append("{0} test {1}".format(tstnam[i], res))
+            result.append("- {0} test: {1}".format(tstnam[i], res))
+            if not wait(1, mainw):
+                break
         result = '\n'.join(result)
     else:
         err, msg = tstfunc[pos - 1](mainw, extratim=3)
@@ -138,10 +160,202 @@ def runTests(mainw, sel):
             res = "failed\n{0}".format(msg)
         result = "{0} test : {1}".format(tstnam[pos - 1], res)
     if result:
-        QtWidgets.QMessageBox.information(mainw, title, result)
+        if not isNumber(sel):
+            QtWidgets.QMessageBox.information(mainw, title, result)
+    return title, result
+
+
+def runAllTests(mainw):
+    """ Run all the self tests.
+
+    :param mainw: the application MainWindow
+    :return: Nothing
+    """
+    title = "Results of all the self tests"
+    results = ""
+    for i in range(testDlg.numgroup):
+        tstgroup, result = runTests(mainw, i)
+        results += "{0}:\n{1}".format(tstgroup, result)
+        if i < testDlg.numgroup-1:
+            results += "\n\n"
+    QtWidgets.QMessageBox.information(mainw, title, results)
 
 
 # ------------------------------------------------------------------------
+
+def test_cpycutpaste(mainw, extratim=0):
+    """ Test the copy and paste options in Curves menu.
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    path = os.path.join(mainw.testspath, "selftests", "delb.plt")
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    err = 0
+    pltw = subw.widget()
+    info = "#### Test the Copy, Paste and Cut options in the Curve menu ####\n"
+    info += "# Test file: /selftests/delb.plt\n\n"
+    info += "# This file contains 3 curves, each belonging to a different data block.\n"
+    pltw.datatext.setText(info)
+    if not wait(2, mainw):
+        err = -1
+    else:
+        mainw.fileNew()
+        newsubw = mainw.getCurrentSubWindow()
+        if newsubw is None:
+            subw.close()
+            return 1, "QtGui.QMdiArea error"
+        newpltw = newsubw.widget()
+        info += "\n# First we create a new file\n"
+        pltw.datatext.setText(info)
+        if not wait(2, mainw):
+            err = -1
+    if not err:
+        if mainw.copyCurve(0, pltw):
+            newpltw.pasteCurve(mainw.Xcpy, mainw.labXcpy,
+                               mainw.Ycpy, mainw.labYcpy)
+            info += "# Then we copy the curve 'sam1' and paste it in the new file\n"
+            pltw.datatext.setText(info)
+            if not wait(3 + extratim, mainw):
+                err = -1
+        else:
+            err = 1
+            msg = "Error in copying 'sam1' curve"
+    if not err:
+        if mainw.copyCurve(1, pltw):
+            if pltw.delCurve(1):
+                newpltw.pasteCurve(mainw.Xcpy, mainw.labXcpy,
+                                      mainw.Ycpy, mainw.labYcpy)
+                info += "# Now we cut the curve 'sam3' and paste it in the new file\n"
+                info += "\n# End of the test"
+                pltw.datatext.setText(info)
+                pltw.datatext.moveCursor(QtGui.QTextCursor.End)
+                if not wait(3 + extratim, mainw):
+                    err = -1
+            else:
+                err = 1
+                msg = "Error in deleting 'sam2' curve"
+        else:
+            err = 1
+            msg = "Error in copying 'sam2' curve"
+    newpltw.dirty = False
+    newsubw.close()
+    pltw.dirty = False
+    subw.close()
+    return err, msg
+
+
+def test_dupdel(mainw, extratim=0):
+    """ Test the duplicate and delete options in Curves menu.
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    path = os.path.join(mainw.testspath, "selftests", "delb.plt")
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    err = 0
+    pltw = subw.widget()
+    info = "#### Test the Duplicate and Delete options in the Curve menu ####\n"
+    info += "# Test file: /selftests/delb.plt\n\n"
+    info += "# This file contains 3 curves, each belonging to a different data block.\n"
+    pltw.datatext.setText(info)
+    if not wait(2, mainw):
+        err = -1
+    else:
+        info += "\n# First we duplicate the curve 'sam2'\n"
+        pltw.datatext.setText(info)
+        if pltw.duplicateCurve(1):
+            if not wait(2, mainw):
+                err = -1
+        else:
+            err = 1
+            msg = "Error in duplicating 'sam2' curve"
+    if not err:
+        info += "# Now we delete the original curve 'sam2'\n"
+        info += "\n# End of the test"
+        pltw.datatext.setText(info)
+        if pltw.delCurve(1):
+            if not wait(3 + extratim, mainw):
+                err = -1
+        else:
+            err = 1
+            msg = "Error in deleting 'sam2' curve"
+    pltw.dirty = False
+    subw.close()
+    return err, msg
+
+# ------------------------------------------------------------------------
+
+curvtstnam = ["test_cpycutpaste", "test_dupdel"]
+
+curvtstfunc = [test_cpycutpaste, test_dupdel]
+
+
+# ------------------------------------------------------------------------
+
+def runScript(pltw, cmd):
+    """ Execute the script commands in 'cmd'
+
+    :param pltw: the active PlotWin
+    :param cmd: a string with the script commands
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    err = 0
+    msg = ""
+    if not cmd:
+        return err, msg
+    plotlist = []
+    for l, line in enumerate(cmd.splitlines()):
+        line = line.strip()
+        if line and not line.startswith('#'):
+            if line.startswith('plot') or line.startswith('lab') or \
+                    line.startswith('text') or line.startswith('arrow') or \
+                    line.startswith('symbol') or line.startswith('nosymbol'):
+                msg = pltw.checkPlotCmd(line, pltw.curvelist)
+                if not msg:
+                    plotlist.append(line)
+                    msg = pltw.checkPlotOrder(plotlist)
+                if msg:
+                    err = 1
+            else:
+                scrpt = script(pltw)
+                (err, msg) = scrpt.dispatch(line)
+        if err > 0:
+            break
+    if err > 0:
+        msg = "Error in line {0}, {1}".format(l + 1, msg)
+    if err <= 0:
+        if msg:
+            err = 0
+    if err == 0:
+        if plotlist:
+            pltw.scriptPlot(plotlist)
+        else:
+            pltw.updatePlot()
+            if pltw.dcursor is not None:
+                pltw.dcursor.updateLinePos()
+                # update data table
+        if pltw.tabledlg is not None:
+            pltw.tabledlg.table.initTable()
+    return err, msg
+
+
 
 def test_area(mainw, extratim=0):
     """ Test the 'area' script command.
@@ -194,16 +408,12 @@ def test_area(mainw, extratim=0):
         if not wait(2, mainw):
             err = -1
     if not err:
-        # Area between 250.792 and 362.125 = 5562.28
-        result = calculArea(pltw, pltw.curvelist[0], 566, 900)
-        if result:
-            info = "#\n# {0}\n\nEnd of the test".format(result)
+        err, msg = runScript(pltw, "area Y")
+        if err == 0:
+            info = "#\n# {0}\n\nEnd of the test".format(msg)
             pltw.datatext.setText(info)
             if not wait(3 + extratim, mainw):
                 err = -1
-        else:
-            err = 1
-            msg = "Calcul area error"
     subw.close()
     return err, msg
 
@@ -223,7 +433,6 @@ def test_BET(mainw, extratim=0):
     subw = mainw.getCurrentSubWindow()
     if subw is None:
         return 1, "QtGui.QMdiArea error"
-    err = 0
     pltw = subw.widget()
     info = "#### Test of the 'BET' script command ####\n"
     info += "# Test file: /selftests/BET.plt\n"
@@ -231,16 +440,10 @@ def test_BET(mainw, extratim=0):
     if not wait(2, mainw):
         err = -1
     else:
-        (msg, bestprm, Pri, Prf) = processBET(pltw.blklst[0])
-        if msg:
-            err = 1
+        err, msg = runScript(pltw, "BET")
     if not err:
-        info += "# Computing BET surface area\n"
-        info += '# BET Surface Area : {0:7.2f} m2/g\n'.format(bestprm.SBET)
-        info += '# Correlation Coefficient :  {0:4.5f} \n\n'.format(bestprm.cc)
-        info += "# End of the test"
-        pltw.datatext.setText(info)
-        if not wait(2 + extratim, mainw):
+        pltw.datatext.setText(msg)
+        if not wait(3 + extratim, mainw):
             err = -1
     subw.close()
     return err, msg
@@ -261,16 +464,15 @@ def test_clipupdn(mainw, extratim=0):
     subw = mainw.getCurrentSubWindow()
     if subw is None:
         return 1, "QtGui.QMdiArea error"
-    err = 0
     pltw = subw.widget()
     info = "#### Test of the 'clipup' and 'clipdn' script command ####\n"
     info += "# Test file: /selftests/clipupdn.plt\n\n"
     info += "# First, testing 'clipup' script command \n"
-    pltw.datatext.setText(msg)
-    if not wait(4, mainw):
+    pltw.datatext.setText(info)
+    if not wait(3, mainw):
         err = -1
     else:
-        err, msg = clipup(pltw, 'Y', 1.0)
+        err, msg = runScript(pltw, "clipup Y 1.0")
         if not err:
             pltw.updatePlot()
             info += "# Using 'clipup Y 1' to clip Y > 1.0\n"
@@ -281,12 +483,13 @@ def test_clipupdn(mainw, extratim=0):
         info = "# Now, testing 'clipdn' script command \n\n"
         info += "# Using 'clipdn Y -1' to clip Y < -1.0\n\n"
         info += "# End of the test"
-        err, msg = clipdn(pltw, 'Y', -1.0)
+        err, msg = runScript(pltw, "clipdn Y -1.0")
         if not err:
             pltw.updatePlot()
             pltw.datatext.setText(info)
-            if not wait(3 + extratim, mainw):
+            if not wait(1 + extratim, mainw):
                 err = -1
+        pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -314,7 +517,7 @@ def test_clipx(mainw, extratim=0):
     if not wait(3, mainw):
         err = -1
     else:
-        err, msg = clipx(pltw, 30, '>')
+        err, msg = runScript(pltw, "clipx > 30")
         if not err:
             pltw.updatePlot()
             info += "# Using 'clipx > 30' to remove X values > 30\n"
@@ -322,6 +525,7 @@ def test_clipx(mainw, extratim=0):
             pltw.datatext.setText(info)
             if not wait(2 + extratim, mainw):
                 err = -1
+            pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -354,13 +558,11 @@ def test_delb(mainw, extratim=0):
         info += "\n# Executing 'delb 2' command\n"
         info += "# End of the test"
         pltw.datatext.setText(info)
-        if pltw.delBlock(1):
+        err, msg = runScript(pltw, "delb 2")
+        if err == 0:
             pltw.dirty = False
             if not wait(3 + extratim, mainw):
                 err = -1
-        else:
-            err = 1
-            msg = "Wrong block number"
     subw.close()
     return err, msg
 
@@ -387,12 +589,13 @@ def test_deldupx(mainw, extratim=0):
     if not wait(3, mainw):
         err = -1
     else:
-        err, msg = delDupX(pltw, 'X')
+        err, msg = runScript(pltw, "deldupx X")
     if not err:
         info += "# {0}\n\n# End of the test".format(msg)
         pltw.datatext.setText(info)
         if not wait(2 + extratim, mainw):
             err = -1
+        pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -423,13 +626,11 @@ def test_delv(mainw, extratim=0):
         info += "# Execute 'delv Pd' command\n\n"
         info += "# End of the test"
         pltw.datatext.setText(info)
-        if pltw.delVector('Pd'):
+        err, msg = runScript(pltw, "delv Pd")
+        if err == 0:
             pltw.dirty = False
             if not wait(2 + extratim, mainw):
                 err = -1
-        else:
-            err = 1
-            msg = "Error in vector name"
     subw.close()
     return err, msg
 
@@ -459,10 +660,11 @@ def test_despike(mainw, extratim=0):
         info += "# Execute 'despike I 3' command\n"
         info += "# End of the test"
         pltw.datatext.setText(info)
-        err, msg = despike(pltw, 'I', 3)
+        err, msg = runScript(pltw, "despike I 3")
     if not err:
         pltw.updatePlot()
-        if not wait(3 + extratim, mainw):
+        pltw.dirty = False
+        if not wait(1 + extratim, mainw):
             err = -1
     subw.close()
     return err, msg
@@ -490,7 +692,7 @@ def test_fft(mainw, extratim=0):
     if not wait(1 + extratim, mainw):
         err = -1
     else:
-        err, msg = fft(pltw, 'Y')
+        err, msg = runScript(pltw, 'fft Y')
     if not err:
         info += "# Execute 'fft Y' command\n"
         info += "# This creates and loads the file Y-fft.txt\n\n"
@@ -498,7 +700,7 @@ def test_fft(mainw, extratim=0):
         pltw.datatext.setText(info)
         if not wait(3 + extratim, mainw):
             err = -1
-        fftnam = "{0}/Y-fft.txt".format(mainw.progpath)
+        fftnam = os.path.join(mainw.progpath, "Y-fft.txt")
         subwfft = mainw.isAlreadyOpen(fftnam)
         if subwfft is not None:
             subwfft.close()
@@ -530,7 +732,7 @@ def test_IR(mainw, extratim=0):
     else:
         info = "##### First testing 'IRabs' script command #####\n\n"
         pltw.datatext.setText(info)
-        err, msg = convertToAbs(pltw.blklst[0])
+        err, msg = runScript(pltw, "IRabs")
     if not err:
         pltw.updatePlot()
         if not wait(2 + extratim, mainw):
@@ -539,11 +741,12 @@ def test_IR(mainw, extratim=0):
         info = "##### Now testing 'IRtrans' script command #####\n\n"
         info += "# End of the test"
         pltw.datatext.setText(info)
-        err, msg = convertToTrans(pltw.blklst[0])
+        err, msg = runScript(pltw, "IRtrans")
         if not err:
             pltw.updatePlot()
             if not wait(3 + extratim, mainw):
                 err = -1
+            pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -602,7 +805,7 @@ def test_line(mainw, extratim=0):
         if not wait(2, mainw):
             err = -1
     if not err:
-        err, ms = line(pltw, 'Y')
+        err, ms = runScript(pltw, "line Y")
         if not err:
             pltw.updatePlot()
             info += "# Executing 'line Y' clears the second peak\n\n"
@@ -610,6 +813,7 @@ def test_line(mainw, extratim=0):
             pltw.datatext.setText(info)
             if not wait(3 + extratim, mainw):
                 err = -1
+            pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -647,9 +851,9 @@ def test_linefit(mainw, extratim=0):
             err = 1
             msg = "Data cursor error"
     if not err:
-        err, msg = lineFit(pltw, pltw.curvelist[0], 53, 1)
+        err, msg = runScript(pltw, "linefit Y 1")
         if not err:
-            info = "# Execute 'linefit Y' "
+            info = "# Execute 'linefit Y 1' "
             info += "\n{}\n".format(msg)
             info += "\n# End of the test"
             pltw.datatext.setText(msg)
@@ -679,7 +883,7 @@ def test_lineq(mainw, extratim=0):
     info = "#### Test of the 'lineq' script commands ####\n"
     info += "# Test file: /selftests/lineq.plt\n"
     pltw.datatext.setText(info)
-    if not wait(2 + extratim, mainw):
+    if not wait(1 + extratim, mainw):
         err = -1
     else:
         pltw.dcursor = dCursor(pltw)
@@ -713,18 +917,12 @@ def test_lineq(mainw, extratim=0):
         if not wait(2, mainw):
             err = -1
     if not err:
-        err, msg = linEq(pltw, pltw.curvelist[0], 20, 60)
-        x1 = pltw.blklst[0][0][20]
-        y1 = pltw.blklst[0][1][20]
-        x2 = pltw.blklst[0][0][60]
-        y2 = pltw.blklst[0][1][60]
-        pltw.lineList.append(lineSeg(x1, y1, x2, y2, 'red'))
-        pltw.updatePlot()
+        err, msg = runScript(pltw, "lineq Y")
         if not err:
             info = "# Execute 'lineq Y' \n"
             info += "{0}\n\n# End of the test".format(msg)
             pltw.datatext.setText(info)
-            if not wait(3 + extratim, mainw):
+            if not wait(2 + extratim, mainw):
                 err = -1
     subw.close()
     return err, msg
@@ -748,16 +946,17 @@ def test_mergeb(mainw, extratim=0):
     pltw = subw.widget()
     info = "#### Test of the 'mergeb' script commands ####\n"
     info += "# Test file: /selftests/mergeb.txt\n\n"
-    info += "# This file contains two data blocks with only one vector, \n"
+    info += "# The Information window shows that this file contains \n"
+    info += "# two data blocks each containing only one vector. \n"
     info += "# The 'mergeb 1 2' command will merge these blocks such as \n"
     info += "# there will be only one data block containing 2 vectors \n"
     pltw.datatext.setText(info)
     if not wait(4, mainw):
         err = -1
     else:
-        err, msg = mergeb(pltw, [1, 2])
+        err, msg = runScript(pltw, "mergeb 1 2")
     if not err:
-        tmpnam = "{0}/selftests/tmp.txt".format(mainw.testspath)
+        tmpnam = os.path.join(mainw.testspath, "tmp.txt")
         done = pltw.save(tmpnam)
         if done:
             pltw.load(tmpnam)
@@ -791,19 +990,20 @@ def test_ndec(mainw, extratim=0):
     info += "# Test file: /selftests/ndec.plt\n"
     info += "# Display the data table"
     pltw.datatext.setText(info)
-    if not wait(5, mainw):
+    if not wait(3+extratim, mainw):
         err = -1
     else:
-        err, msg = ndec(pltw, 'Y', 2)
+        err, msg = runScript(pltw, "ndec Y 2")
         pltw.tabledlg.table.initTable()
     if not err:
-        info += "\n# Execute 'ndec Y 2' command"
+        info += "\n# Executing 'ndec Y 2' command"
         info += "\n# Now, the Y values are rounded to 2 decimal place"
         info += "\n\n# End of the test"
         pltw.datatext.setText(info)
-        if not wait(5 + extratim, mainw):
+        if not wait(5+extratim, mainw):
             err = -1
         pltw.tabledlg.close()
+        pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -826,15 +1026,25 @@ def test_newv(mainw, extratim=0):
     if not wait(1, mainw):
         err = -1
     else:
-        err, msg = newV(pltw, "newv X 0,10,0.1")
+        err, msg = runScript(pltw, "newv X 0,10,0.1")
     if not err:
         info += "# Executing 'newv X 0,10,0.1' command\n"
-        info += "# This create a new vector X and\n"
-        info += "# a new data block for hosting X\n"
+        info += "# The Information window shows that this create a new \n"
+        info += "# vector X and a new data block for hosting X\n"
+        pltw.datatext.setText(info)
+        if not wait(4, mainw):
+            err = -1
+    if not err:
+        err, msg = runScript(pltw, "Y = sin(X)")
+    if not err:
+        err, msg = runScript(pltw, "plot X,Y")
+    if not err:
+        pltw.updatePlot()
+        info += "\n# Create the vector Y = sin(X) and plot X,Y\n"
         info += "\n# End of the test"
         pltw.datatext.setText(info)
         pltw.displayInfo()
-    if not wait(4 + extratim, mainw):
+    if not wait(2 + extratim, mainw):
         err = -1
     pltw.dirty = False
     subw.close()
@@ -895,10 +1105,11 @@ def test_onset(mainw, extratim=0):
         if not wait(2, mainw):
             err = -1
     if not err:
-        err, msg = onset(pltw, pltw.curvelist[0], 45, 52)
+        err, msg = runScript(pltw, "onset Y")
         if not err:
-            info += "# Execute 'onset Y' command"
-            info += "{0}\n# End of the test".format(msg)
+            info = "# Execute 'onset Y' command\n"
+            info += msg
+            info += "\n\n# End of the test".format(msg)
             pltw.datatext.setText(info)
             if not wait(5 + extratim, mainw):
                 err = -1
@@ -931,23 +1142,59 @@ def test_PSD(mainw, extratim=0):
     if not wait(3, mainw):
          err = -1
     else:
-         psdnam = "{0}/PSD-PSD.plt".format(mainw.progpath)
-         err, msg = PSDcalc(pltw.blklst[1], psdnam, 'D', "halsey")
+         err, msg = runScript(pltw, "PSD D halsey")
     if not err:
         info += "\n# Execute 'PSD D halsey' command"
         pltw.datatext.setText(info)
-        if not wait(2, mainw):
+        if not wait(4+extratim, mainw):
             err = -1
     if not err:
-        msg = mainw.loadFile(psdnam)
-        if msg == "":
-            if not wait(4+extratim, mainw):
-                err = -1
-            subwpsd = mainw.isAlreadyOpen(psdnam)
-            if subwpsd is not None:
-                subwpsd.close()
-        else:
-            err = 1
+        psdnam = os.path.join(mainw.testspath, "selftests", "PSD-PSD.plt")
+        subwpsd = mainw.isAlreadyOpen(psdnam)
+        if subwpsd is not None:
+            subwpsd.close()
+    subw.close()
+    return err, msg
+
+
+def test_invert(mainw, extratim=0):
+    """ Test the 'invertx' and 'inverty' script commands.
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    path = os.path.join(mainw.testspath, "selftests", "invert.txt")
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Test of the 'invertx and 'inverty' script commands ####\n"
+    info += "# Test file: /selftests/invert.txt\n"
+    pltw.datatext.setText(info)
+    if not wait(3, mainw):
+        err = -1
+    else:
+        err, msg = runScript(pltw, "invertx")
+    if not err:
+        pltw.updatePlot()
+        info += "\n# After executing 'invertx' command"
+        pltw.datatext.setText(info)
+        if not wait(3, mainw):
+            err = -1
+    if not err:
+        err, msg = runScript(pltw, "inverty")
+    if not err:
+        pltw.updatePlot()
+        info += "\n\n# After executing 'inverty' command"
+        info += "\n\n# End of the test"
+        pltw.datatext.setText(info)
+        if not wait(3 + extratim, mainw):
+            err = -1
     subw.close()
     return err, msg
 
@@ -976,7 +1223,7 @@ def test_revert(mainw, extratim=0):
     if not wait(3, mainw):
         err = -1
     else:
-        err, msg = revertv(pltw, 'X')
+        err, msg = runScript(pltw, "revertv X")
     if not err:
         pltw.updatePlot()
         pltw.tabledlg.table.initTable()
@@ -986,7 +1233,7 @@ def test_revert(mainw, extratim=0):
         if not wait(3, mainw):
             err = -1
     if not err:
-        err, msg = revertb(pltw, 0)
+        err, msg = runScript(pltw, "revertb 1")
     if not err:
         pltw.updatePlot()
         pltw.tabledlg.table.initTable()
@@ -997,6 +1244,7 @@ def test_revert(mainw, extratim=0):
         if not wait(3 + extratim, mainw):
             err = -1
         pltw.tabledlg.close()
+        pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -1026,8 +1274,8 @@ def test_shift(mainw, extratim=0):
     else:
         err = 0
     pltw.dcursor = dCursor(pltw)
-    if pltw.dcursor.move(indx=20):
-        info += "# Set Cursor at X = 2\n"
+    if pltw.dcursor.move(indx=181):
+        info += "# Set Cursor at X = 998\n"
         pltw.datatext.setText(info)
         if not wait(2, mainw):
             err = -1
@@ -1041,8 +1289,8 @@ def test_shift(mainw, extratim=0):
         if not wait(2, mainw):
             err = -1
     if not err:
-        if pltw.dcursor.move(indx=60):
-            info += "# Set Cursor at X = 6\n"
+        if pltw.dcursor.move(indx=274):
+            info += "# Set Cursor at X = 1510\n"
             pltw.datatext.setText(info)
             if not wait(2, mainw):
                 err = -1
@@ -1056,14 +1304,16 @@ def test_shift(mainw, extratim=0):
         if not wait(2, mainw):
             err = -1
     if not err:
-        err, msg = shift(pltw, pltw.curvelist[0], -0.6, 20, 60)
+        err, msg = runScript(pltw, "shift Y -20")
+        mainw.clearMarks()
         if not err:
             pltw.updatePlot()
-            info += "# Execute 'shift Y -0.6' command"
+            info += "# Execute 'shift Y -20' command"
             info += "\n# End of the test"
             pltw.datatext.setText(info)
             if not wait(3 + extratim, mainw):
                 err = -1
+            pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -1086,17 +1336,19 @@ def test_shrink(mainw, extratim=0):
     pltw = subw.widget()
     info = "#### Test of the 'shrink' script commands ####\n"
     info += "# Test file: /selftests/shrink.plt\n"
+    info += "# This file contains 7313 points"
     pltw.datatext.setText(info)
     if not wait(3, mainw):
         err = -1
     else:
         info += "# Execute the command 'shrink TG 5'\n"
-        err, msg = shrink(pltw, 'TG', 5)
+        err, msg = runScript(pltw, "shrink TG 5")
     if not err:
         info += "\n# {0}\n\n# End of the test".format(msg)
         pltw.datatext.setText(info)
         if not wait(4 + extratim, mainw):
             err = -1
+        pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -1124,7 +1376,7 @@ def test_sort(mainw, extratim=0):
     if not wait(4, mainw):
         err = -1
     else:
-        err, msg = sort(pltw, 'X')
+        err, msg = runScript(pltw, "sort X")
     if not err:
         pltw.updatePlot()
         info += "\n# After executing 'sort X' command"
@@ -1132,6 +1384,7 @@ def test_sort(mainw, extratim=0):
         pltw.datatext.setText(info)
         if not wait(4 + extratim, mainw):
             err = -1
+        pltw.dirty = False
     subw.close()
     return err, msg
 
@@ -1159,7 +1412,7 @@ def test_stats(mainw, extratim=0):
     if not wait(3, mainw):
         err = -1
     else:
-        err, msg = stats(pltw, 'Y')
+        err, msg = runScript(pltw, "stats Y")
     if not err:
         pltw.datatext.setText(msg)
         if not wait(5 + extratim, mainw):
@@ -1190,7 +1443,7 @@ def test_swapv(mainw, extratim=0):
     if not wait(3, mainw):
         err = -1
     else:
-        err, ms = swapv(pltw, 'X', 'Y')
+        err, ms = runScript(pltw, "swapv X Y")
     if not err:
         pltw.updatePlot()
         info += "\n# After executing 'swapv X Y' command"
@@ -1198,6 +1451,7 @@ def test_swapv(mainw, extratim=0):
         pltw.datatext.setText(info)
         if not wait(3 + extratim, mainw):
             err = -1
+        pltw.dirty = False
         subw.close()
     return err, msg
 
@@ -1206,14 +1460,14 @@ def test_swapv(mainw, extratim=0):
 
 sctstnam = ["area", "BET", "clipup & clipdn", "clipx", "delb", "deldupx",
             "delv", "despike", "fft", "IR", "line", "linefit", "lineq",
-            "mergeb", "ndec", "newv", "onset", "PSD", "revert", "shift",
-            "shrink", "sort", "stats", "swapv"]
+            "mergeb", "ndec", "newv", "onset", "PSD", "invert", "revert",
+            "shift", "shrink", "sort", "stats", "swapv"]
 
 sctstfunc = [test_area, test_BET, test_clipupdn, test_clipx, test_delb,
             test_deldupx, test_delv, test_despike, test_fft, test_IR,
             test_line, test_linefit, test_lineq, test_mergeb, test_ndec,
-            test_newv, test_onset, test_PSD, test_revert, test_shift,
-            test_shrink, test_sort, test_stats, test_swapv ]
+            test_newv, test_onset, test_PSD, test_invert, test_revert,
+            test_shift, test_shrink, test_sort, test_stats, test_swapv ]
 
 # ------------------------------------------------------------------------
 
@@ -1651,4 +1905,326 @@ convtstnam = ["test_CIF", "test_DAT", "test_PRF", "test_reshape",
 
 convtstfunc = [test_CIF, test_DAT, test_PRF, test_reshape,
               test_transpose, test_1Dto2D]
+
+# ------------------------------------------------------------------------
+
+def test_smooth(mainw, extratim=0):
+    """ Test the 'Smoothing' option in Tools menu
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    filnam = "Smoothing.plt"
+    path = os.path.join(mainw.testspath, "selftests", filnam)
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Testing 'Smoothing' option in Tools menu ####\n"
+    info += "#\n"
+    info += "# Loading test file: /selftests/{0}\n\n".format(filnam)
+    pltw.datatext.setText(info)
+    err = 0
+    if not wait(2, mainw):
+        err = -1
+    if not err:
+        info += "# Starting Smoothing Tool\n\n"
+        pltw.datatext.setText(info)
+        mainw.smoothTool(pltw, 0)
+        if not wait(5, mainw):
+            err = -1
+    subw.close()
+    return err, msg
+
+
+def test_splsmooth(mainw, extratim=0):
+    """ Test the 'Spline Smoothing' option in Tools menu
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    filnam = "SplSmoothing.plt"
+    path = os.path.join(mainw.testspath, "selftests", filnam)
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Testing 'Spline Smoothing' option in Tools menu ####\n"
+    info += "#\n"
+    info += "# Loading test file: /selftests/{0}\n\n".format(filnam)
+    pltw.datatext.setText(info)
+    err = 0
+    if not wait(2, mainw):
+        err = -1
+    if not err:
+        info += "# Starting Spline Smoothing Tool\n\n"
+        pltw.datatext.setText(info)
+        mainw.splinSmoothTool(pltw, 0)
+        if not wait(5, mainw):
+            err = -1
+    subw.close()
+    return err, msg
+
+
+def test_ALSsmooth(mainw, extratim=0):
+    """ Test the 'Smoothing' option in Tools menu
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    filnam = "ALS-Smooth.plt"
+    path = os.path.join(mainw.testspath, "selftests", filnam)
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Testing 'ALS Smoothing' option in Tools menu ####\n"
+    info += "#\n"
+    info += "# Loading test file: /selftests/{0}\n\n".format(filnam)
+    pltw.datatext.setText(info)
+    err = 0
+    if not wait(2, mainw):
+        err = -1
+    if not err:
+        info += "# Starting ALS Smoothing Tool\n\n"
+        pltw.datatext.setText(info)
+        mainw.ALS_SmoothTool(pltw, 0)
+        if not wait(4, mainw):
+            err = -1
+    subw.close()
+    return err, msg
+
+
+def test_curvfit(mainw, extratim=0):
+    """ Test the 'Curve Fitting' option in Tools menu
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    filnam = "Sigmoid.plt"
+    path = os.path.join(mainw.testspath, "selftests", filnam)
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Testing 'Curve Fitting' option in Tools menu ####\n"
+    info += "#\n"
+    info += "# Loading test file: /selftests/{0}\n\n".format(filnam)
+    pltw.datatext.setText(info)
+    err = 0
+    if not wait(2, mainw):
+        err = -1
+    if not err:
+        info += "# Starting Curve Fitting Tool\n\n"
+        pltw.datatext.setText(info)
+        mainw.fitCurveTool(pltw, 0, 6)
+        if not wait(5, mainw):
+            err = -1
+    subw.close()
+    return err, msg
+
+
+def test_peakfit(mainw, extratim=0):
+    """ Test the 'Peak Fitting' option in Tools menu
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    filnam = "peakFind.plt"
+    path = os.path.join(mainw.testspath, "selftests", filnam)
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Testing 'Peak Fitting' option in Tools menu ####\n"
+    info += "#\n"
+    info += "# Loading test file: /selftests/{0}\n\n".format(filnam)
+    pltw.datatext.setText(info)
+    err = 0
+    if not wait(2, mainw):
+        err = -1
+    if not err:
+        info += "# Starting Peak Fitting Tool\n\n"
+        pltw.datatext.setText(info)
+        guess = "P,47.3,4820.0,0.1\n"
+        guess += "P,47.42,2370.0,0.1\n"
+        guess += "P,56.12,2500.0,0.1\n"
+        guess += "P,56.27,1330.0,0.1"
+        mainw.fitPkTool(pltw, 0, guess)
+        if not wait(5, mainw):
+            err = -1
+    subw.close()
+    return err, msg
+
+
+def test_interpol(mainw, extratim=0):
+    """ Test the 'Interpolation' option in Tools menu
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    filnam = "interpol.plt"
+    path = os.path.join(mainw.testspath, "selftests", filnam)
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Testing 'Interpolation' option in Tools menu ####\n"
+    info += "#\n"
+    info += "# Loading test file: /selftests/{0}\n\n".format(filnam)
+    pltw.datatext.setText(info)
+    err = 0
+    if not wait(2, mainw):
+        err = -1
+    if not err:
+        info += "# Starting Interpolation Tool\n\n"
+        pltw.datatext.setText(info)
+        mainw.interpolTool()
+        if not wait(5, mainw):
+            err = -1
+    subw.close()
+    return err, msg
+
+
+def test_baslin(mainw, extratim=0):
+    """ Test the 'Baseline' option in Tools menu
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    filnam = "baseline.plt"
+    path = os.path.join(mainw.testspath, "selftests", filnam)
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Testing 'Baseline' option in Tools menu ####\n"
+    info += "#\n"
+    info += "# Loading test file: /selftests/{0}\n\n".format(filnam)
+    pltw.datatext.setText(info)
+    err = 0
+    if not wait(2, mainw):
+        err = -1
+    if not err:
+        info += "# Starting Baseline Tool\n\n"
+        pltw.datatext.setText(info)
+        mainw.baselineTool(pltw, 0)
+        if not wait(5, mainw):
+            err = -1
+    subw.close()
+    return err, msg
+
+
+def test_addnoise(mainw, extratim=0):
+    """ Test the 'Add Noise' option in Tools menu
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    filnam = "addNoise.plt"
+    path = os.path.join(mainw.testspath, "selftests", filnam)
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Testing 'Add noise' option in Tools menu ####\n"
+    info += "#\n"
+    info += "# Loading test file: /selftests/{0}\n\n".format(filnam)
+    pltw.datatext.setText(info)
+    err = 0
+    if not wait(2, mainw):
+        err = -1
+    if not err:
+        info += "# Starting Add Noise Tool\n\n"
+        pltw.datatext.setText(info)
+        mainw.noiseTool(pltw, 0)
+        if not wait(5, mainw):
+            err = -1
+    subw.close()
+    return err, msg
+
+
+def test_denoise(mainw, extratim=0):
+    """ Test the 'Remove Noise' option in Tools menu
+
+    :param mainw: the application MainWindow
+    :return: a tuple (err, msg).
+             err = 0 if success, 1 if failure and -1 if interrupted by user.
+             msg = contains an error message ("" if not error)
+    """
+    filnam = "delNoise.plt"
+    path = os.path.join(mainw.testspath, "selftests", filnam)
+    msg = mainw.loadFile(path)
+    if msg:
+        return 1, msg
+    subw = mainw.getCurrentSubWindow()
+    if subw is None:
+        return 1, "QtGui.QMdiArea error"
+    pltw = subw.widget()
+    info = "#### Testing 'Remove Noise' option in Tools menu ####\n"
+    info += "#\n"
+    info += "# Loading test file: /selftests/{0}\n\n".format(filnam)
+    pltw.datatext.setText(info)
+    err = 0
+    if not wait(2, mainw):
+        err = -1
+    if not err:
+        info += "# Starting Remove Noise Tool\n\n"
+        pltw.datatext.setText(info)
+        mainw.deNoiseTool(pltw, 0)
+        if not wait(5, mainw):
+            err = -1
+    subw.close()
+    return err, msg
+
+# ------------------------------------------------------------------------
+
+toolststnam = ["test_smooth", "test_splsmooth", "test_ALSsmooth",
+               "test_curvfit", "test_peakfit", "test_interpol",
+               "test_baslin", "test_addnoise", "test_denoise"]
+
+toolststfunc = [test_smooth, test_splsmooth, test_ALSsmooth,
+                test_curvfit, test_peakfit, test_interpol,
+                test_baslin, test_addnoise, test_denoise ]
+
 

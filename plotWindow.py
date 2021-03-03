@@ -14,8 +14,8 @@ from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
 
-from utils import (isNumber, isNumeric, isNumData)
-from utils import (textToData, dataToFile, JcampDX, arrayToString)
+from utils import (isNumber, isNumeric, isNumData, textToData,
+                                 dataToFile, JcampDX, arrayToString)
 
 
 # - vector class ------------------------------------------------------------
@@ -98,6 +98,8 @@ class dCursor:
         if self.ic is not None:
             if self.ic >= npt:
                 self.ic = npt-1
+        else:
+            self.ic = 0
         if self.parent.curvelist[self.parent.activcurv].axis == 1:
             self.lh2 = None
         else:
@@ -515,6 +517,7 @@ class plotWin(QtWidgets.QDialog):
         self.datatext.setPlainText(txt)
         self.filename = filename
         blocks = None
+        colsep = ' '
         self.headers = []
         txtlines = txt.splitlines()
         if len(txtlines) < 2:
@@ -533,23 +536,23 @@ class plotWin(QtWidgets.QDialog):
                     # Try to guess the column separator
                     if isNumber(txtlines[startidx]):
                         # No separator, 1D data
-                        sep = None
+                        colsep = None
                     else:
                         dialect = csv.Sniffer().sniff(txtlines[startidx])
-                        sep = dialect.delimiter
+                        colsep = dialect.delimiter
                     errmsg = ""
                 else:
                     errmsg = "Cannot decode the text data"
 
         if not errmsg and blocks is None:
-            errmsg, blocks, headers = textToData(txtlines[startidx:], sep)
+            errmsg, blocks, headers = textToData(txtlines[startidx:], colsep)
             if blocks is None or len(blocks) == 0 or len(blocks[0][0]) == 0:
                 errmsg = 'Unable to decode numeric data'
             else:
                 try:
                     for blk in blocks:
                         (self.nvect, self.nelem) = np.shape(np.array(blk))
-                        self.colsep = sep
+                        self.colsep = colsep
                 except ValueError:
                      errmsg = "Cannot decode the text data"
 
@@ -860,11 +863,12 @@ class plotWin(QtWidgets.QDialog):
         lh = len(header)
         vinfolist = []
         if lh > 0:
-            # the last line is supposed to contains the vector names
-            vnam = header[lh-1].strip()
+            # the last line is supposed to contains the vector name
+            vnam = header[lh - 1]
             if vnam.startswith('#'):
                 # remove the # at the beginning
                 vnam = vnam[1:]
+            vnam = vnam.strip()
             if self.colsep is not None:
                 vlst = list(vnam.split(self.colsep))
             else:
@@ -1084,15 +1088,15 @@ class plotWin(QtWidgets.QDialog):
                                                    label=curvelist[i].name))
 
         # Set axis labels
-        self.axes.tick_params(axis='x', labelsize='large')
-        self.axes.tick_params(axis='y', labelsize='large')
+        self.axes.tick_params(axis='x', labelsize=self.parent.chartfontsiz)
+        self.axes.tick_params(axis='y', labelsize=self.parent.chartfontsiz)
         # put axis legend
         if self.labx is not None:
-            self.axes.set_xlabel(self.labx,fontweight='bold', fontsize='large')
+            self.axes.set_xlabel(self.labx, fontweight='bold', fontsize=self.parent.chartfontsiz)
         if self.laby1 is not None:
-            self.axes.set_ylabel(self.laby1,fontweight='bold', fontsize='large')
+            self.axes.set_ylabel(self.laby1, fontweight='bold', fontsize=self.parent.chartfontsiz)
         if self.laby2 is not None:
-            self.y2axis.set_ylabel(self.laby2, fontweight='bold', fontsize='large')
+            self.y2axis.set_ylabel(self.laby2, fontweight='bold', fontsize=self.parent.chartfontsiz)
         # Log scale is set with MatPlotLib toolbar
         #if self.logX:
         #    self.axes.set_xscale('log')
@@ -1110,7 +1114,7 @@ class plotWin(QtWidgets.QDialog):
                     c.append(self.dplot[i][0])
                 legendlist.append(curvelist[i].name)
             self.axes.legend(tuple(c), tuple(legendlist),
-                             loc='best', fontsize='large', numpoints=1, shadow=True)
+                             loc='best', fontsize=self.parent.chartfontsiz, numpoints=1, shadow=True)
         # draw arrow
         if len(self.arrows):
             for arrw in self.arrows:
@@ -1683,6 +1687,11 @@ class plotWin(QtWidgets.QDialog):
         :param cidx: the index of the curve in self.curvelist.
         :return: True if done, False otherwise.
         """
+        if len(self.curvelist) == 0:
+            return False
+        # check the parameters
+        if cidx < 0 or cidx >= len(self.curvelist):
+            return False
         cname = self.curvelist[cidx].name + '#'
         xvinfo = self.curvelist[cidx].xvinfo
         yvinfo = self.curvelist[cidx].yvinfo
@@ -1695,6 +1704,8 @@ class plotWin(QtWidgets.QDialog):
             if self.tabledlg is not None:
                 self.tabledlg.table.initTable()
             self.parent.updateUI()
+            return True
+        return False
 
 
     def pasteCurve(self, vectX, xnam, vectY, ynam):
@@ -1730,10 +1741,11 @@ class plotWin(QtWidgets.QDialog):
                     break
                 nvect, npt = np.shape(self.blklst[0])
                 for i in range(nvect):
-                    if np.allclose(vectX, nparray[i]):
-                        blkno = n
-                        xidx = i
-                        break
+                    if nparray[i].size == vectX.size:
+                        if np.allclose(vectX, nparray[i]):
+                            blkno = n
+                            xidx = i
+                            break
             if blkno is not None:
                 # vectX already existing, ask user to add vectY
                 # at the end of self.blklst[blkno]
@@ -1798,7 +1810,7 @@ class plotWin(QtWidgets.QDialog):
                 newdata = np.vstack((self.blklst[blkno][xvinfo.vidx],
                                      self.blklst[blkno][yvinfo.vidx]))
                 # save the data in the file
-                vnames = xvinfo.name + '\t' + yvinfo.name
+                vnames = xvinfo.name + ' ' + yvinfo.name
                 np.savetxt(filename, np.transpose(newdata), header=vnames)
                 return True
         return False

@@ -41,7 +41,8 @@ import os
 import numpy as np
 from scipy import signal
 
-from utils import isNumber, calcArea, shrinkRows, sortArr, delDupliX, rms, pp
+from utils import (isNumber, calcArea, shrinkRows, sortArr,
+                                 delDupliX, rms, pp)
 from convert import convertToAbs, convertToTrans
 from convIso import BET, PSDcalc
 from plotWindow import vectInfo, lineSeg
@@ -344,14 +345,13 @@ class script(object):
             cmdidx = self.typ0Lst.index(cmd)
         except ValueError:
             return (1, "Check the parameters")
-        logfilnam = os.path.join(self.parent.progpath, "logfile.txt")
+        logfilnam = os.path.join(self.parent.parent.progpath, "logfile.txt")
         if cmdidx == self.typ0Lst.index('BET'):
             errno, msg = BET(self.parent.blklst[0], 'N2', logfilnam)
         elif cmdidx == self.typ0Lst.index('BETKr'):
             errno, msg = BET(self.parent.blklst[0], 'Kr', logfilnam)
         elif cmdidx == self.typ0Lst.index('BETAr'):
             errno, msg = BET(self.parent.blklst, 'Ar', logfilnam)
-
         elif cmdidx == self.typ0Lst.index('IRabs'):
             errno, msg = convertToAbs(self.parent.blklst[0])
             if not errno:
@@ -363,11 +363,11 @@ class script(object):
                 self.parent.laby1 = "Transmittance"
                 self.parent.vectInfolst[0][1].name = 'Transmittance'
         elif cmdidx == self.typ0Lst.index('invertx'):
-                self.parent.invertX = not(self.parent.invertX)
-                return errno, msg
+            self.parent.invertX = not(self.parent.invertX)
+            return errno, msg
         elif cmdidx == self.typ0Lst.index('inverty'):
-                self.parent.invertY = not(self.parent.invertY)
-                return errno, msg
+            self.parent.invertY = not(self.parent.invertY)
+            return errno, msg
         else:
             return (1, "Internal error")
         if errno == 0:
@@ -381,7 +381,10 @@ class script(object):
 
         :param cmdidx: index of the command in self.typ1Lst
         :param vnam: name of the vector argument.
-        :return: a tuple (errno, errmsg).
+        :return: a tuple (err, msg).
+                 err = 0 means no error
+                 err = 1 means an error occurred
+                 err =-1 means no error
         """
         if not isNumber(vnam):
             vinfo = self.parent.getVinfo(vnam)
@@ -421,7 +424,15 @@ class script(object):
                     return (1, "Wrong curve name")
                 idx1 = self.parent.markList[0].getIndex()
                 idx2 = self.parent.markList[1].getIndex()
-                return self.linEq(self.parent, curvinfo, idx1, idx2)
+                err, msg = linEq(self.parent, curvinfo, idx1, idx2)
+                if not err:
+                    x1 = self.parent.blklst[0][0][20]
+                    y1 = self.parent.blklst[0][1][20]
+                    x2 = self.parent.blklst[0][0][60]
+                    y2 = self.parent.blklst[0][1][60]
+                    self.parent.lineList.append(lineSeg(x1, y1, x2, y2, 'red'))
+                    self.parent.updatePlot()
+                return err, msg
 
         if cmdidx == self.typ1Lst.index('delb'):
             blkno = int(vnam) - 1
@@ -462,9 +473,6 @@ class script(object):
             if not err:
                 self.parent.dirty = True
                 self.parent.clearMarks()
-                errmsg = "The data order in the vector {0}" \
-                         " has been reverted".format(vnam)
-                err = -1
             return (err, errmsg)
 
         if cmdidx == self.typ1Lst.index('sort'):
@@ -494,8 +502,8 @@ class script(object):
                 curvinfo = self.parent.getCurvinfo(vnam)
                 idx1 = self.parent.markList[0].getIndex()
                 idx2 = self.parent.markList[1].getIndex()
-                result = onset(self.parent, curvinfo, idx1, idx2)
-                return (0, result)
+                err, msg = onset(self.parent, curvinfo, idx1, idx2)
+                return (err, msg)
 
         if cmdidx == self.typ1Lst.index('fft'):
             err, errmsg = fft(self.parent, vnam)
@@ -790,11 +798,11 @@ def stats(pltw, vnam):
     val = pltw.blklst[blkno][vpos].mean()
     result += "   Mean = {0:g}\n".format(val)
     val = pltw.blklst[blkno][vpos].std()
+    result += "   Standard deviation = {0:g}\n".format(val)
+    val = pltw.blklst[blkno][vpos].var()
     result += "   Variance = {0:g}\n".format(val)
     val = rms(pltw.blklst[blkno][vpos])
-    result += "   Standard deviation = {0:g}\n\n".format(val)
-    val = pltw.blklst[blkno][vpos].var()
-    result += "Root mean square (RMS) = {0:g}\n".format(val)
+    result += "   Root mean square (RMS) = {0:g}\n\n".format(val)
     val = pp(pltw.blklst[blkno][vpos])
     result += "Peak-to-peak (pp) = {0:g}\n".format(val)
     return 0, result

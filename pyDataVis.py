@@ -13,16 +13,16 @@ from PyQt5 import QtGui, QtWidgets
 from plotWindow import plotWin, dCursor
 from convert import convSelector
 from dataTable import tableDlg
-from toolsDialogs import ( smoothDlg, splinSmoothDlg, ALS_SmoothDlg,
-                            modelSelectDlg, fitCurveDlg, pkFindDlg, pkFitDlg,
-                            interpolDlg, baselineDlg, noiseDlg, deNoiseDlg )
+from toolsDialogs import (smoothDlg, splinSmoothDlg, ALS_SmoothDlg,
+                              modelSelectDlg, fitCurveDlg, pkFindDlg, pkFitDlg,
+                              interpolDlg, baselineDlg, noiseDlg, deNoiseDlg)
 from script import script
-from utils import checkURL, cpyFromURL, round_to_n
-from utils import textToData, exportToVeusz
-from tests import runTests
+from utils import (checkURL, cpyFromURL, round_to_n, getDataFromUrl,
+                                 copyFiles, textToData, exportToVeusz)
+from tests import runTests, runAllTests
 
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 # - settingsDlg class ------------------------------------------------------------
 
@@ -48,6 +48,11 @@ class settingsDlg(QtWidgets.QDialog):
         sizlst = range(6, 20)  # list of font size between 6 and 20
         self.txtFontlist = [str(i) for i in sizlst]
         self.txtFontComboBox.addItems(self.txtFontlist)
+        # Chart font size
+        chartFontlab = QtWidgets.QLabel("Chart font size")
+        self.chartFontComboBox = QtWidgets.QComboBox(self)
+        self.chartFontlist = ['small', 'medium', 'large']
+        self.chartFontComboBox.addItems(self.chartFontlist)
         # Buttons
         applyBtn = QtWidgets.QPushButton("Apply")
         okBtn = QtWidgets.QPushButton("OK")
@@ -62,12 +67,16 @@ class settingsDlg(QtWidgets.QDialog):
         hbox2.addWidget(txtFontlab)
         hbox2.addWidget(self.txtFontComboBox)
         hbox3 = QtWidgets.QHBoxLayout()
-        hbox3.addWidget(applyBtn)
-        hbox3.addWidget(okBtn)
-        hbox3.addWidget(cancelBtn)
+        hbox3.addWidget(chartFontlab)
+        hbox3.addWidget(self.chartFontComboBox)
+        hbox4 = QtWidgets.QHBoxLayout()
+        hbox4.addWidget(applyBtn)
+        hbox4.addWidget(okBtn)
+        hbox4.addWidget(cancelBtn)
         vbox.addLayout(hbox1)
         vbox.addLayout(hbox2)
         vbox.addLayout(hbox3)
+        vbox.addLayout(hbox4)
         self.setLayout(vbox)
 
         # Connect buttons to callback functions
@@ -91,6 +100,9 @@ class settingsDlg(QtWidgets.QDialog):
         cbidx = self.txtFontlist.index(str(self.txtFontSiz))
         self.txtFontComboBox.setCurrentIndex(cbidx)
 
+        self.chartFontSiz = self.parent.chartfontsiz
+        cbidx = self.chartFontlist.index(str(self.chartFontSiz))
+        self.chartFontComboBox.setCurrentIndex(cbidx)
 
 
     def apply(self):
@@ -107,9 +119,15 @@ class settingsDlg(QtWidgets.QDialog):
         # Change QTextEdit font size in all the plotWin sub windows
         self.txtFontSiz = int(str(self.txtFontComboBox.currentText()))
         self.parent.txteditfont.setPointSize(self.txtFontSiz)
+
+        # Change chart font size
+        self.chartFontSiz = self.chartFontComboBox.currentText()
+        self.parent.chartfontsiz = self.chartFontSiz
+
         for subw in self.parent.mdi.subWindowList():
             pltw = subw.widget()
             pltw.setTextFont(self.parent.txteditfont)
+            pltw.updatePlot()
 
 
     def validate(self):
@@ -120,6 +138,7 @@ class settingsDlg(QtWidgets.QDialog):
         self.apply()
         self.parent.appfontsiz = self.appFontSiz
         self.parent.txteditfontsiz = self.txtFontSiz
+        self.parent.chartfontsiz = self.chartFontSiz
         self.hide()
 
 
@@ -243,19 +262,19 @@ class MainWindow(QtWidgets.QMainWindow):
     labXcpy = None              # Store the name of the vector X
     labYcpy = None              # Store the name of the vector Y
 
-    def __init__(self, parent = None):
+    def __init__(self, datapath, parent = None):
         super(MainWindow, self).__init__(parent)
 
-        self.app = QtWidgets.QApplication.instance()
-        self.progpath = self.testspath = None
-        # Create the location of the program folder
-        home = os.path.expanduser("~")
-        if os.access(home, os.W_OK):
-            self.progpath = os.path.join(home, ".pyDataVis")
-            if not os.path.exists(self.progpath):
-                 os.mkdir(self.progpath)
-            self.testspath = os.path.join(self.progpath, "tests")
+        self.datapath = datapath
+        self.testspath = os.path.join(self.datapath, "tests")
+        # Find the location of the program folder
+        path = inspect.getfile(inspect.currentframe())
+        self.progpath, f = os.path.split(path)
+        path = os.path.join(self.progpath, "pyDataVis.py")
+        if not os.path.exists(path):
+            self.progpath = None
 
+        self.app = QtWidgets.QApplication.instance()
         self.mdi = QtWidgets.QMdiArea()
         # Enable drag & drop onto the GUI
         self.setAcceptDrops(True)
@@ -289,6 +308,7 @@ class MainWindow(QtWidgets.QMainWindow):
             fntsiz = 10
         self.txteditfont.setPointSize(fntsiz)
         self.txteditfontsiz = fntsiz
+        self.chartfontsiz = "medium"
 
         self.numpltw = 0         # Store the number of plotWin
                                  # The following data are used for undo
@@ -298,6 +318,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dirtycpy = None
         self.create_actions()
         self.load_settings()
+        self.test = False        # is set to True during testing
         self.smoothDlg = None
         self.splinSmoothDlg = None
         self.interpolDlg = None
@@ -317,7 +338,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.statusbar.showMessage(msg, 5000)
         self.updateWindowMenu()
         self.setWindowTitle(self.app.applicationName())
-        iconpath = os.path.join(self.progpath, "icons", "icon.ico")
+        iconpath = os.path.join(self.datapath, "icons", "icon.ico")
         if not os.path.isfile(iconpath):
             # Try to load data files from GitHub
             url = "https://github.com/pyDataVis/pyDataVis/archive/main.zip"
@@ -536,13 +557,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
         helpAction = self.createAction("Help", self.help,
                 None, None, "Open pyDataVis manual")
+        helpCurveTestAction = self.createAction("Run curve tests", self.runSelfTests,
+                None, None, "Test curves manipulation")
         helpScriptTestAction = self.createAction("Run script tests", self.runSelfTests,
                 None, None, "Test script commands")
         helpIOTestAction = self.createAction("Run I/O tests", self.runSelfTests,
                 None, None, "Test Input/Output")
-        helpConvTestAction = self.createAction("Run convert tests", self.runSelfTests,
+        helpConvTestAction = self.createAction("Run Convert tests", self.runSelfTests,
                 None, None, "Test convert options")
-        helpUpdateAction = self.createAction("Update from GitHub", self.updateFromGitHub,
+        helpToolsTestAction = self.createAction("Run Tools tests", self.runSelfTests,
+                None, None, "Test Tools options")
+        helpAllTestsAction = self.createAction("Run all tests", self.runSelfTests,
+                None, None, "Run all the tests")
+        self.helpUpdateAction = self.createAction("Update from GitHub", self.updateFromGitHub,
                 None, None, "Download data from GitHub")
         helpAboutAction = self.createAction("About", self.helpAbout,
                 None, None, "About pyDataVis")
@@ -590,9 +617,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.windowMenu.aboutToShow.connect(self.updateWindowMenu)
         helpMenu = self.menuBar().addMenu("&Help")
         self.addActions(helpMenu, (helpAction, None,
-                                   helpScriptTestAction, helpIOTestAction,
-                                   helpConvTestAction, None,
-                                   helpUpdateAction, None, helpAboutAction))
+                                   helpCurveTestAction,helpScriptTestAction,
+                                   helpIOTestAction, helpConvTestAction,
+                                   helpToolsTestAction,
+                                   helpAllTestsAction, None,
+                                   self.helpUpdateAction, None, helpAboutAction))
 
 
     def load_settings(self):
@@ -616,6 +645,7 @@ class MainWindow(QtWidgets.QMainWindow):
             fntsiz = int(settings.value('txteditfontsiz'))
             self.txteditfont.setPointSize(fntsiz)
             self.txteditfontsiz = fntsiz
+            self.chartfontsiz = settings.value('chartfontsiz', "medium")
         settings.endGroup()
 
 
@@ -680,6 +710,7 @@ class MainWindow(QtWidgets.QMainWindow):
         settings.beginGroup("font")
         settings.setValue('appfontsiz', self.appfontsiz)
         settings.setValue('txteditfontsiz', self.txteditfontsiz)
+        settings.setValue('chartfontsiz', self.chartfontsiz)
         settings.endGroup()
         settings.beginGroup("files")
         subw = self.mdi.currentSubWindow()
@@ -705,6 +736,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.fileSaveTextAction.setEnabled(state)
         self.fileUpdateFromTextAction.setEnabled(state)
         self.fileUpdateFromDataAction.setEnabled(state)
+        self.curvPasteAction.setEnabled(state and MainWindow.Ycpy is not None)
         self.scriptLoadAction.setEnabled(state)
         self.scriptSaveAction.setEnabled(state)
         self.scriptRunAction.setEnabled(state)
@@ -725,7 +757,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.curvCopyAction.setEnabled(state2)
         self.curvDuplicateAction.setEnabled(state2)
         self.curvSaveInFileAction.setEnabled(state2)
-        self.curvPasteAction.setEnabled(state2 and MainWindow.Ycpy is not None)
         self.curvCutAction.setEnabled(state2)
         self.curvDelAction.setEnabled(state2)
         self.toolsSmoothAction.setEnabled(state2)
@@ -753,14 +784,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.cursorFirstAction.setEnabled(state2)
             else:
                 self.cursorRightAction.setEnabled(state2)
-                self.cursorLastAction.setEnabled(state2)
+                self.cursorFirstAction.setEnabled(state2)
             state2 = bool(pltw.dcursor.ic < (pltw.dcursor.X.size) - 1)
             if pltw.xascending:
                  self.cursorRightAction.setEnabled(state2)
                  self.cursorLastAction.setEnabled(state2)
             else:
                 self.cursorLeftAction.setEnabled(state2)
-                self.cursorFirstAction.setEnabled(state2)
+                self.cursorLastAction.setEnabled(state2)
             self.cursorUpAction.setEnabled(pltw.activcurv > 0)
             self.cursorDnAction.setEnabled(pltw.activcurv < len(pltw.curvelist)-1)
             self.addMarkAction.setEnabled(True)
@@ -774,6 +805,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.cursorDnAction.setEnabled(False)
             self.addMarkAction.setEnabled(False)
             self.clearMarksAction.setEnabled(False)
+        self.helpUpdateAction.setEnabled(self.progpath is not None)
         self.windowCascadeAction.setEnabled(self.numpltw > 1)
         self.windowTileAction.setEnabled(self.numpltw > 1)
         self.windowCloseAction.setEnabled(self.numpltw > 0)
@@ -884,7 +916,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if pltw is not None:
                 dirnam = os.path.dirname(pltw.filename)
         else:
-            dirnam = self.progpath
+            dirnam = self.datapath
         dlg = QtWidgets.QFileDialog(self, title, directory=dirnam, filter=filter)
         filename = dlg.getOpenFileName()[0]
         if filename:
@@ -938,7 +970,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if err == "":
             self.mdi.addSubWindow(pltw)
             pltw.show()
-            self.raise_()
+            if not self.test:
+                self.raise_()
             self.numpltw += 1
             self.updateUI()
             return ""
@@ -1050,7 +1083,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if msg == "":
             self.mdi.addSubWindow(pltw)
             pltw.show()
-            self.raise_()
+            if not self.test:
+                self.raise_()
             self.numpltw += 1
             self.updateUI()
             return 0, msg
@@ -1336,7 +1370,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         :return: nothing.
         """
-        path = os.path.join(self.progpath, "logfile.txt")
+        path = os.path.join(self.datapath, "logfile.txt")
         if os.path.isfile(path):
             fo = open(path, 'r')
             txt = fo.read()
@@ -1385,8 +1419,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         :param cpos: index, in pltw.curvelist, of the curve to copy.
         :param pltw: the plotWin containing the curve.
-        :return: True if success.
+        :return: True if success
         """
+        if pltw is None:
+            return False
+        if cpos < 0 or cpos > len(pltw.curvelist) - 1:
+            return False
         xvinfo = pltw.curvelist[cpos].xvinfo
         yvinfo = pltw.curvelist[cpos].yvinfo
         blkno = yvinfo.blkpos
@@ -1700,7 +1738,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pltw = subw.widget()
         title = "Open a script file"
         filter = "Text files (*.txt);;All files (*.*)"
-        dir = os.path.join(self.progpath, "scripts")
+        dir = os.path.join(self.datapath, "scripts")
         filename = QtWidgets.QFileDialog.getOpenFileName(self, title, dir, filter)[0]
         if filename:
             with open(filename) as file:
@@ -1718,7 +1756,7 @@ class MainWindow(QtWidgets.QMainWindow):
         pltw = subw.widget()
         title = "Save a script file"
         filter = "Text files (*.txt);;All files (*.*)"
-        dir = os.path.join(self.progpath, "scripts")
+        dir = os.path.join(self.datapath, "scripts")
         if not os.path.exists(dir):
             # the scripts folder does not exist, create it
             os.makedirs(dir)
@@ -1808,7 +1846,7 @@ class MainWindow(QtWidgets.QMainWindow):
             msg = "Nothing to execute !"
             QtWidgets.QMessageBox.warning(self, "Execute a command", msg)
             return
-        path= os.path.join(self.progpath, "input.txt")
+        path= os.path.join(self.datapath, "input.txt")
         if os.path.isfile(path):
             # delete input.txt file
             os.remove(path)
@@ -1825,7 +1863,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Add the script from Script window
         pyscript += cmd
         # Save the script in 'scripts/scriptfile.py'
-        path = os.path.join(self.progpath, "scripts")
+        path = os.path.join(self.datapath, "scripts")
         if not os.path.exists(path):
             # the scripts folder does not exist, create it
             os.makedirs(path)
@@ -1834,7 +1872,7 @@ class MainWindow(QtWidgets.QMainWindow):
              file.write(pyscript)
         # execute the script, the output is stored in "output.txt" file.
         import subprocess
-        path = os.path.join(self.progpath, "output.txt")
+        path = os.path.join(self.datapath, "output.txt")
         with open(path, "w+") as output:
             subprocess.run(["python", scriptpath], stdout=output)
         # Show the process output in info window
@@ -1880,13 +1918,18 @@ class MainWindow(QtWidgets.QMainWindow):
 
     # - Tools menu --------------------------------------------------------------
 
-    def smoothTool(self):
+    def smoothTool(self, pltw=None, cpos=None):
         """ Launch the interactive Smoothing tool.
 
+            If pltw and cpos parameters are not passed they are being
+            requested from the user.
+        :param pltw: plotWin containing data
+        :param cpos: position of the curve in pltw.curvelist
         :return: nothing
         """
-        pltw, cpos = self.selCurvePos()
-        if cpos is not None:
+        if cpos is None:
+            pltw, cpos = self.selCurvePos()
+        if cpos is not None and pltw is not None:
             if self.smoothDlg is None:
                 self.smoothDlg = smoothDlg(self, pltw, cpos)
             else:
@@ -1895,13 +1938,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self.smoothDlg.show()
 
 
-    def splinSmoothTool(self):
+    def splinSmoothTool(self, pltw=None, cpos=None):
         """ Launch the interactive Spline Smoothing Tool.
+
+            If pltw and cpos parameters are not passed they are being
+            requested from the user.
+        :param pltw: plotWin containing data
+        :param cpos: position of the curve in pltw.curvelist
 
         :return: nothing.
         """
-        pltw, cpos = self.selCurvePos()
-        if cpos is not None:
+        if cpos is None:
+            pltw, cpos = self.selCurvePos()
+        if cpos is not None and pltw is not None:
             if self.splinSmoothDlg is None:
                 self.splinSmoothDlg = splinSmoothDlg(self, pltw, cpos)
             else:
@@ -1910,45 +1959,62 @@ class MainWindow(QtWidgets.QMainWindow):
             self.splinSmoothDlg.show()
 
 
-    def ALS_SmoothTool(self):
+    def ALS_SmoothTool(self, pltw=None, cpos=None):
         """ Launch the interactive Asymetric Least Squares Smoothing tool.
+
+            If pltw and cpos parameters are not passed they are being
+            requested from the user.
+        :param pltw: plotWin containing data
+        :param cpos: position of the curve in pltw.curvelist
 
         :return: nothing.
         """
-        pltw, cpos = self.selCurvePos()
-        if cpos is not None:
+        if cpos is None:
+            pltw, cpos = self.selCurvePos()
+        if cpos is not None and pltw is not None:
             ALS_Smoothdlg = ALS_SmoothDlg(self, pltw, cpos)
             ALS_Smoothdlg.setModal(True)
             ALS_Smoothdlg.show()
 
 
-    def fitCurveTool(self):
+    def fitCurveTool(self, pltw=None, cpos=None, modelno=None):
         """ Launch the interactive Fitting tool.
 
+            If pltw and cpos parameters are not passed they are being
+            requested from the user.
+        :param pltw: plotWin containing data
+        :param cpos: position of the curve in pltw.curvelist
         :return: nothing.
         """
-        subw = self.getCurrentSubWindow()
-        if subw is not None:
-            pltw = subw.widget()
-            dlg = modelSelectDlg(self, pltw)
-            # Init widgets
-            dlg.nameComboBox.setCurrentIndex(pltw.activcurv)
-            dlg.modelComboBox.setCurrentIndex(self.fitmodel)
-            if dlg.exec_():
-                self.copyCurrentWinState(pltw)
-                cpos, modelno = dlg.getValues()
-                fitdlg = fitCurveDlg(self, pltw, cpos, modelno)
-                fitdlg.setModal(True)
-                fitdlg.show()
+        if cpos is None:
+            subw = self.getCurrentSubWindow()
+            if subw is not None:
+                pltw = subw.widget()
+                dlg = modelSelectDlg(self, pltw)
+                # Init widgets
+                dlg.nameComboBox.setCurrentIndex(pltw.activcurv)
+                dlg.modelComboBox.setCurrentIndex(self.fitmodel)
+                if dlg.exec_():
+                    self.copyCurrentWinState(pltw)
+                    cpos, modelno = dlg.getValues()
+        if cpos is not None and modelno is not None:
+            fitdlg = fitCurveDlg(self, pltw, cpos, modelno)
+            fitdlg.setModal(True)
+            fitdlg.show()
 
 
 
-    def findPkTool(self):
+    def findPkTool(self, pltw=None, cpos=None):
         """ Launch the Peak Finding tool.
 
+            If pltw and cpos parameters are not passed they are being
+            requested from the user.
+        :param pltw: plotWin containing data
+        :param cpos: position of the curve in pltw.curvelist
         :return: nothing.
         """
-        pltw, cpos = self.selCurvePos()
+        if cpos is None:
+            pltw, cpos = self.selCurvePos()
         if cpos is None:
             return
         pkFinddlg = pkFindDlg(self, pltw, cpos)
@@ -1982,16 +2048,23 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-    def fitPkTool(self):
+    def fitPkTool(self, pltw=None, cpos=None, guess=None):
         """ Launch the interactive Peak Fitting tool.
 
+            If pltw and cpos parameters are not passed they are being
+            requested from the user.
+        :param pltw: plotWin containing data
+        :param cpos: position of the curve in pltw.curvelist
+        :param guess: string containing the first estimate of the
+                      peak parameters.
         :return: nothing.
         """
-        pltw, cpos = self.selCurvePos()
+        if cpos is None:
+            pltw, cpos = self.selCurvePos()
         if cpos is None:
             return
         self.copyCurrentWinState(pltw)
-        pkfitdlg = pkFitDlg(self, pltw, cpos)
+        pkfitdlg = pkFitDlg(self, pltw, cpos, guess)
         if pkfitdlg.stguess is None:
             del pkfitdlg
         else:
@@ -2037,36 +2110,51 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-    def baselineTool(self):
+    def baselineTool(self, pltw=None, cpos=None):
         """ Launch the interactive Baseline correction tool.
 
+            If pltw and cpos parameters are not passed they are being
+            requested from the user.
+        :param pltw: plotWin containing data
+        :param cpos: position of the curve in pltw.curvelist
         :return: nothing.
         """
-        pltw, cpos = self.selCurvePos()
+        if cpos is None:
+            pltw, cpos = self.selCurvePos()
         if cpos is not None:
             baselinedlg = baselineDlg(self, pltw, cpos)
             baselinedlg.setModal(True)
             baselinedlg.show()
 
 
-    def noiseTool(self):
+    def noiseTool(self, pltw=None, cpos=None):
         """ Launch the interactive Add noise tool.
 
+            If pltw and cpos parameters are not passed they are being
+            requested from the user.
+        :param pltw: plotWin containing data
+        :param cpos: position of the curve in pltw.curvelist
         :return: nothing
         """
-        pltw, cpos = self.selCurvePos()
+        if cpos is None:
+            pltw, cpos = self.selCurvePos()
         if cpos is not None:
             noisedlg = noiseDlg(self, pltw, cpos)
             noisedlg.setModal(True)
             noisedlg.show()
 
 
-    def deNoiseTool(self):
+    def deNoiseTool(self, pltw=None, cpos=None):
         """ Launch the Remove noise tool.
 
+            If pltw and cpos parameters are not passed they are being
+            requested from the user.
+        :param pltw: plotWin containing data
+        :param cpos: position of the curve in pltw.curvelist
         :return: nothing.
         """
-        pltw, cpos = self.selCurvePos()
+        if cpos is None:
+            pltw, cpos = self.selCurvePos()
         if cpos is not None:
             denoisedlg = deNoiseDlg(self, pltw, cpos)
             denoisedlg.setModal(True)
@@ -2105,88 +2193,61 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-    def getSourceFromUrl(self, copydir, url):
-        """  Copy source files from 'url' in 'copydir' folder
-
-        :param copydir: the folder where files will be copied.
-        :param url: the GitHub URL.
-        :return: an error message (= "" if no error)
-        """
-        return
-
-
     def getDataFromUrl(self, url):
-        """  Copy data from 'url' in 'copydir' folder
+        """  Copy data from 'url' in 'self.datapath' folder
 
         :param url: the GitHub URL.
         :return: an error message (= "" if no error)
         """
-        self.statusbar.showMessage("Checking internet connection")
         self.app.setOverrideCursor(Qt.WaitCursor)
-        # Check internet connection
-        status_code = urlopen(url).getcode()
-        if status_code != 200:
-            return "Cannot access pyDataVis.git"
         self.statusbar.showMessage("Cloning pyDataVis data from GitHub")
         # Clone url
-        tmppath = os.path.join(self.progpath, "tmp")
-        if not os.path.exists(tmppath):
-            # the tmp folder does not exist, create it
-            os.makedirs(tmppath)
-        os.chdir(tmppath)
-
-        zippath = os.path.join(tmppath, "main.zip")
-        if checkURL(url):
-            cpyFromURL(url, zippath)
-        else:
-            return "Invalid URL: {0}".format(url)
-        # check if the main.zip file has been created
-        if not os.path.exists(zippath):
-            return "Fail to get data archive from GitHub"
-
-        shutil.unpack_archive(zippath)
-        copydir = os.path.join(tmppath, "pyDataVis-main")
-        errmsg = ""
-        dirlst = os.listdir(copydir)
-        # Copy data folders
-        files = [f for f in dirlst if f != '.']
-        for f in files:
-            try:
-                src = os.path.join(copydir, f)
-                dest = os.path.join(self.progpath, f)
-                if not os.path.exists(dest):
-                    if os.path.isdir(src):
-                        shutil.copytree(src, dest)
-                    else:
-                        shutil.copyfile(src, dest)
-            except IOError as err:
-                errmsg = "Fail to copy folder {0}: {1}".format(dest, err)
-                break
-
-        # Delete the tmp folder
-        shutil.rmtree(copydir)
+        msg = getDataFromUrl(url, self.datapath)
         self.statusbar.showMessage("")
         self.app.restoreOverrideCursor()
-        return errmsg
+        return msg
 
 
     def updateFromGitHub(self):
         """ Update from GitHub
 
-        :return: nothing
+        :return: True is success.
         """
-        url = "https://github.com/pyDataVis/pyDataVis/archive/main.zip"
-        if os.path.exists(self.progpath):
-            shutil.rmtree(self.progpath)
-            os.mkdir(self.progpath)
-        errmsg = self.getDataFromUrl(url)
         title = "Update from GitHub"
-        if errmsg:
-            QtWidgets.QMessageBox.warning(self, title, errmsg)
-        else:
-            msg = "Successful update"
-            QtWidgets.QMessageBox.information(self, title, msg)
-
+        msg = ""
+        scriptpath = os.path.join(self.datapath, "scripts")
+        tmppath = os.path.join(self.datapath, "tmp")
+        tmpscriptpath = os.path.join(tmppath, "scripts")
+        if os.path.exists(scriptpath):
+            # Save scripts folder in temporary folder
+            if os.path.exists(tmppath):
+                shutil.rmtree(tmppath)
+            os.makedirs(tmppath)
+            msg = copyFiles(scriptpath, tmpscriptpath)
+        if not msg:
+            dirlst = os.listdir(self.datapath)
+            files = [f for f in dirlst if f != 'tmp']
+            # Delete all files and folders in self.datapath but the tmp folder
+            try:
+                for f in files:
+                    path = os.path.join(self.datapath, f)
+                    if os.path.isdir(path):
+                        shutil.rmtree(path)
+                    else:
+                        os.remove(path)
+            except IOError as err:
+                msg = "Fail to delete {0}: {1}".format(f, err)
+        if not msg:
+            url = "https://github.com/pyDataVis/pyDataVis/archive/main.zip"
+            msg = self.getDataFromUrl(url)
+        if not msg:
+            # Restore 'scripts' folder from tmp folder
+            if os.path.exists(tmpscriptpath):
+                msg = copyFiles(tmpscriptpath, scriptpath)
+        if msg:
+            QtWidgets.QMessageBox.warning(self, title, msg)
+            return False
+        return True
 
 
     def latestVersion(self):
@@ -2218,7 +2279,21 @@ class MainWindow(QtWidgets.QMainWindow):
         r = QtWidgets.QMessageBox.information(self, title, msg,
                      QtWidgets.QMessageBox.Yes |
                      QtWidgets.QMessageBox.No)
-        return r == QtWidgets.QMessageBox.Yes
+        if r != QtWidgets.QMessageBox.Yes:
+            return
+        if not self.updateFromGitHub():
+            return
+
+        if self.progpath is not None and os.access(self.progpath, os.W_OK):
+            msg = "Ok to quit pyDataVis ?"
+            ret = QtWidgets.QMessageBox.question(self, title, msg,
+                            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+            if ret == QtWidgets.QMessageBox.Yes:
+                msg = copyFiles(self.datapath, self.progpath)
+                if not msg:
+                    sys.exit(0)
+                    # Restart
+                    # os.execv(['python', __file__] + sys.argv[1:])
 
 
 
@@ -2230,7 +2305,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not os.path.exists(self.testspath):
             # Try to load data files from GitHub
             url = "https://github.com/pyDataVis/pyDataVis.git"
-            clonedir = os.path.join(self.progpath, "tmp", "pyDataVis")
+            clonedir = os.path.join(self.datapath, "tmp", "pyDataVis")
             errmsg = self.getDataFromUrl(clonedir, url)
             if errmsg:
                 title = "Fail to get tests data from GitHub"
@@ -2238,7 +2313,12 @@ class MainWindow(QtWidgets.QMainWindow):
         if os.path.exists(self.testspath):
             sender = self.sender()
             sel = sender.text()
-            runTests(self, sel)
+            self.test = True
+            if sel == "Run all tests":
+                runAllTests(self)
+            else:
+                runTests(self, sel)
+            self.test = False
 
 
 

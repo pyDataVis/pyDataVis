@@ -9,6 +9,7 @@ from utils import isNumber, divideChunks, commaToDot, getSpan
 from convCIF import CIF
 
 
+
 def convSelector(parent, sel, lines, filename):
     """ Call the required conversion function according 'sel' value.
 
