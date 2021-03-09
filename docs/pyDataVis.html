@@ -228,7 +228,7 @@
 </ul>
 </nav>
 <h1 id="overview">Overview</h1>
-<p><strong>pyDataVis</strong> is a GUI application for interactive visualization, analysis and manipulation of scientific data. There are many <a href="https://en.wikipedia.org/wiki/Category:Free_plotting_software">free plotting sofware</a> most of them far more powerful than <em>pyDataVis</em>. However, in terms of simplicity, it is hard to beat. Indeed it is very easy to use, just drag and drop your data file in <em>pyDataVis</em> window and immediately you are seeing the curves. For now, <em>pyDataVis</em> is limited to 2D plotting.</p>
+<p><strong>pyDataVis</strong> is a GUI application for interactive visualization, analysis and manipulation of scientific data. There are many <a href="https://en.wikipedia.org/wiki/Category:Free_plotting_software">free plotting software</a> most of them far more powerful than <em>pyDataVis</em>. However, in terms of simplicity, it is hard to beat. Indeed it is very easy to use, just drag and drop your data file in <em>pyDataVis</em> window and immediately you are seeing the curves. For now, <em>pyDataVis</em> is limited to 2D plotting.</p>
 <p><em>pyDataVis</em> is an open source software written in <a href="https://en.wikipedia.org/wiki/Python_(programming_language)">Python</a>. It uses <a href="https://riverbankcomputing.com/software/pyqt/">PyQt</a> as graphic user interface (GUI) and <a href="https://matplotlib.org/">Matplotlib</a> for plotting.</p>
 <p><em>pyDataVis</em> operates only on text data. These data are assumed to be in columns with the same number of elements. The column separator (a space, a tab character, a comma, a semicolon …) must be the same all over the file. Each column is regarded as a <strong>vector</strong> (one-dimensional array). Here is an example, with 3 vectors having 10 elements:</p>
 <pre><code>0   0.00    0.00
@@ -246,10 +246,10 @@
 <p>A pyDataVis window is shown in figure 1; it is divided into four main parts:</p>
 <ul>
 <li>The upper part, which contains the <em>Plotting area</em>.</li>
-<li>Below the <em>Plotting area</em>, there is the <em>Text editor window</em> showing the text data.</li>
+<li>Just below the <em>Plotting area</em>, there is the <a href="#matplotlib-toolbar">MatPlotLib toolbar</a>.</li>
+<li>Below is the <em>Text editor window</em> showing the text data.</li>
 <li>At the bottom, the remaining space is shared by the <em>Script window</em> on the left and</li>
 <li>the <em>Information window</em> on the right.</li>
-<li>At the bottom, is the <em>Information window</em>. Besides, just below the <em>Plotting area</em>, there is the <a href="#matplotlib-toolbar">MatPlotLib toolbar</a>.</li>
 </ul>
 <p>When a data file is red without error, the <em>Text editor window</em> shows the text content of the file. If the format of this text has been correctly decoded, one or more curves are automatically plotted in the <em>Plotting area</em>. Information about the structure of the data and plotted curves are given in the <em>Information window</em>. Unlike text editor and script windows the text in <em>Information window</em> cannot be modified, it is purely informational. The <em>Script window</em> is used to input the <a href="#script-commands">script commands</a>.</p>
 <figure>
@@ -811,7 +811,11 @@ clipdn Yclip -1</code></pre>
 </figure>
 <h2 id="running-python-scripts">Running Python scripts</h2>
 <p>The <em>Execute a Python script</em> option in the <em>Script</em> menu executes the Python script in the <em>Script window</em> of the active pyDataVis window.</p>
-<p>pyDataVis does several steps before the execution: - The vectors of the active curve are saved in the file “input.txt”. - The following Python code is added before the script:</p>
+<p>pyDataVis does several steps before the execution:</p>
+<ul>
+<li>The vectors of the active curve are saved in the file “input.txt”.</li>
+<li>The following Python code is added before the script:</li>
+</ul>
 <pre><code>import numpy as np
 A = np.loadtxt(&quot;input.txt&quot;)
 X = A[0]
@@ -858,6 +862,7 @@ plt.show()</code></pre>
 <li><strong>labY1</strong> Rate (rpm) : Display ‘Rate (rpm)’ as label of Y1 axis.</li>
 <li><strong>labY2</strong> Intensity : Display ‘Intensity’ as label of Y2 axis.</li>
 <li><strong>labX</strong> Time (s) : Display ‘Time (s)’ as label of X axis.</li>
+<li><strong>line</strong> Y : Join by a straight line the marker positions on the curve Y.</li>
 <li><strong>linefit</strong> V1 -1 : Compute the equation of the line fitting the curve V1 at the cursor position. The last parameter, which must be either -1 or +1, indicates the direction of the fitting line.</li>
 <li><strong>lineq</strong> V1 : Compute, for curve V1, the equation of the line linking marker positions.</li>
 <li><strong>merge b1 b2</strong> : Merge the data blocks b1 and b2 together</li>
